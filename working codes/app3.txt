@@ -1,0 +1,1084 @@
+
+import os
+import io
+import csv
+import json
+import re
+from pathlib import Path
+from datetime import datetime, timezone
+from urllib.parse import urlparse
+
+import requests
+from flask import Flask, render_template, request, send_file
+
+try:
+    from pyvis.network import Network
+except ImportError:
+    Network = None
+
+
+# ============================================================
+# CONFIGURATION
+# ============================================================
+
+app = Flask(__name__)
+
+BASE_DIR = Path(__file__).resolve().parent
+ETHERSCAN_API_URL = "https://api.etherscan.io/v2/api"
+ETHERSCAN_API_KEY = os.getenv("ETHERSCAN_API_KEY", "").strip()
+
+SERVICE_LABELS_FILE = Path(
+    os.getenv(
+        "SERVICE_LABELS_FILE",
+        str(BASE_DIR / "service_labels.json")
+    )
+)
+
+LAST_RESULTS = None
+ETHERSCAN_LABEL_CACHE = {}
+
+
+# ============================================================
+# DEMO SCENARIOS
+# All demo service addresses below are fictional.
+# ============================================================
+
+SCENARIOS = {
+    "ethereum": {
+        "name": "General Investigation Demo",
+        "description": "Illustrative wallet investigation with fictional service interactions.",
+        "target": "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe",
+    },
+    "suspicious": {
+        "name": "Suspicious Activity Demo",
+        "description": "Illustrative investigation with fictional high-risk activity.",
+        "target": "0x1111111111111111111111111111111111111111",
+    },
+}
+
+
+SERVICE_REFERENCE_DATA = [
+    {
+        "service": "Example Centralized Exchange",
+        "category": "Exchange / VASP",
+        "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "chain": "ethereum",
+        "source_name": "CryptoTrace fictional demo dataset",
+        "source_url": "",
+        "evidence_type": "simulated_demo_record",
+        "confidence": "Demo only",
+        "verified": False,
+        "notes": "Fictional example address. Not a real exchange.",
+    },
+    {
+        "service": "Example Mixer",
+        "category": "Mixer",
+        "address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "chain": "ethereum",
+        "source_name": "CryptoTrace fictional demo dataset",
+        "source_url": "",
+        "evidence_type": "simulated_demo_record",
+        "confidence": "Demo only",
+        "verified": False,
+        "notes": "Fictional example address. Not a real mixer.",
+    },
+    {
+        "service": "Example Cross-chain Bridge",
+        "category": "Bridge",
+        "address": "0xcccccccccccccccccccccccccccccccccccccccc",
+        "chain": "ethereum",
+        "source_name": "CryptoTrace fictional demo dataset",
+        "source_url": "",
+        "evidence_type": "simulated_demo_record",
+        "confidence": "Demo only",
+        "verified": False,
+        "notes": "Fictional example address. Not a real bridge.",
+    },
+    {
+        "service": "Example DeFi Protocol",
+        "category": "DeFi protocol",
+        "address": "0xdddddddddddddddddddddddddddddddddddddddd",
+        "chain": "ethereum",
+        "source_name": "CryptoTrace fictional demo dataset",
+        "source_url": "",
+        "evidence_type": "simulated_demo_record",
+        "confidence": "Demo only",
+        "verified": False,
+        "notes": "Fictional example address. Not a real protocol.",
+    },
+]
+
+
+# ============================================================
+# HELPERS
+# ============================================================
+
+def utc_timestamp(timestamp):
+    try:
+        return datetime.fromtimestamp(
+            int(timestamp), timezone.utc
+        ).strftime("%Y-%m-%d %H:%M:%S UTC")
+    except (ValueError, TypeError, OSError, OverflowError):
+        return "Unknown"
+
+
+def normalize_address(address):
+    if not isinstance(address, str):
+        raise ValueError("Enter a valid Ethereum address.")
+
+    address = address.strip()
+
+    if not re.fullmatch(r"0x[a-fA-F0-9]{40}", address):
+        raise ValueError(
+            "Invalid Ethereum address. It must start with 0x "
+            "and contain exactly 40 hexadecimal characters after it."
+        )
+
+    return address.lower()
+
+
+def shorten_address(address):
+    if not address or len(address) < 12:
+        return address or "Unknown"
+
+    return address[:8] + "..." + address[-6:]
+
+
+def safe_source_url(url):
+    if not isinstance(url, str):
+        return False
+
+    try:
+        parsed = urlparse(url.strip())
+        return (
+            parsed.scheme in ("http", "https")
+            and bool(parsed.netloc)
+        )
+    except ValueError:
+        return False
+
+
+# ============================================================
+# LOCAL VERIFIED LABEL DATASET
+# ============================================================
+
+def load_verified_service_records():
+    """
+    Load records from service_labels.json.
+
+    Real-mode records must include source information, evidence type,
+    verifier and date. This validates metadata, not the truth of a claim.
+    """
+
+    if not SERVICE_LABELS_FILE.exists():
+        return []
+
+    try:
+        with SERVICE_LABELS_FILE.open(
+            "r", encoding="utf-8"
+        ) as file:
+            records = json.load(file)
+
+    except (OSError, json.JSONDecodeError):
+        app.logger.warning("Could not read service_labels.json.")
+        return []
+
+    if not isinstance(records, list):
+        app.logger.warning(
+            "service_labels.json must contain a JSON list."
+        )
+        return []
+
+    required_fields = [
+        "service",
+        "category",
+        "address",
+        "chain",
+        "source_name",
+        "source_url",
+        "evidence_type",
+        "notes",
+        "verified_by",
+        "verified_date",
+    ]
+
+    accepted = []
+    seen_addresses = set()
+
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+
+        if record.get("verified") is not True:
+            continue
+
+        if record.get("evidence_type") == "simulated_demo_record":
+            continue
+
+        if str(record.get("chain", "")).lower() != "ethereum":
+            continue
+
+        if any(
+            not isinstance(record.get(field), str)
+            or not record[field].strip()
+            for field in required_fields
+        ):
+            continue
+
+        if not safe_source_url(record["source_url"]):
+            continue
+
+        try:
+            address = normalize_address(record["address"])
+        except ValueError:
+            continue
+
+        if address in seen_addresses:
+            continue
+
+        clean_record = dict(record)
+        clean_record["address"] = address
+        clean_record["chain"] = "ethereum"
+        clean_record["verified"] = True
+        clean_record["confidence"] = (
+            clean_record.get("confidence") or "Source documented"
+        )
+
+        accepted.append(clean_record)
+        seen_addresses.add(address)
+
+    return accepted
+
+
+# ============================================================
+# OPTIONAL ETHERSCAN NAME TAG LOOKUP
+# ============================================================
+
+def fetch_etherscan_nametag(address):
+    """
+    Attempt the Etherscan Name Tag endpoint.
+
+    Availability depends on the endpoint and API plan. A failed or
+    unsupported lookup returns None, allowing the app to continue.
+
+    A returned label is described as source-published. It does not
+    independently prove ownership, service category or criminality.
+    """
+
+    try:
+        address = normalize_address(address)
+    except ValueError:
+        return None
+
+    if address in ETHERSCAN_LABEL_CACHE:
+        return ETHERSCAN_LABEL_CACHE[address]
+
+    if not ETHERSCAN_API_KEY:
+        return None
+
+    params = {
+        "chainid": "1",
+        "module": "nametag",
+        "action": "getnametag",
+        "address": address,
+        "apikey": ETHERSCAN_API_KEY,
+    }
+
+    try:
+        response = requests.get(
+            ETHERSCAN_API_URL,
+            params=params,
+            timeout=10,
+        )
+        response.raise_for_status()
+        payload = response.json()
+
+    except (requests.RequestException, ValueError):
+        ETHERSCAN_LABEL_CACHE[address] = None
+        return None
+
+    if str(payload.get("status", "")) != "1":
+        ETHERSCAN_LABEL_CACHE[address] = None
+        return None
+
+    result = payload.get("result")
+
+    if isinstance(result, dict):
+        label = (
+            result.get("nametag")
+            or result.get("nameTag")
+            or result.get("label")
+            or result.get("name")
+        )
+    elif isinstance(result, str):
+        label = result
+    else:
+        label = None
+
+    if not isinstance(label, str):
+        ETHERSCAN_LABEL_CACHE[address] = None
+        return None
+
+    label = label.strip()
+
+    if not label or label.lower() in {
+        "none",
+        "null",
+        "unknown",
+        "no nametag found",
+        "not found",
+    }:
+        ETHERSCAN_LABEL_CACHE[address] = None
+        return None
+
+    record = {
+        "service": label,
+        "category": "Etherscan Name Tag — category unconfirmed",
+        "address": address,
+        "chain": "ethereum",
+        "source_name": "Etherscan Name Tag API",
+        "source_url": f"https://etherscan.io/address/{address}",
+        "evidence_type": "etherscan_nametag",
+        "confidence": "Etherscan-published label; independently unconfirmed",
+        "verified": True,
+        "notes": (
+            "This name tag was returned by Etherscan. Its publication "
+            "does not independently establish ownership, service category "
+            "or criminal activity."
+        ),
+        "verified_by": "Etherscan label service",
+        "verified_date": datetime.now(timezone.utc).date().isoformat(),
+    }
+
+    ETHERSCAN_LABEL_CACHE[address] = record
+    return record
+
+
+# ============================================================
+# SERVICE ATTRIBUTION
+# ============================================================
+
+def get_service_attributions(results):
+    """
+    Demo mode matches fictional demo records.
+
+    Real mode matches:
+      1. Locally configured verified records.
+      2. Etherscan Name Tags, if the endpoint is available and returns
+         a label for a transaction participant.
+    """
+
+    if results["mode_key"] == "demo":
+        reference_records = SERVICE_REFERENCE_DATA
+
+    else:
+        reference_records = load_verified_service_records()
+
+        participants = []
+
+        for tx in results.get("transactions", []):
+            for field in ("from", "to"):
+                address = tx.get(field, "").lower()
+
+                if address and address not in participants:
+                    participants.append(address)
+
+        existing_addresses = {
+            record["address"].lower()
+            for record in reference_records
+        }
+
+        # Keep optional API lookups bounded.
+        max_label_lookups = 20
+        lookup_count = 0
+
+        for address in participants:
+            if address in existing_addresses:
+                continue
+
+            if lookup_count >= max_label_lookups:
+                break
+
+            lookup_count += 1
+            record = fetch_etherscan_nametag(address)
+
+            if record:
+                reference_records.append(record)
+                existing_addresses.add(address)
+
+    matched = {}
+
+    for tx in results.get("transactions", []):
+        sender = tx.get("from", "").lower()
+        receiver = tx.get("to", "").lower()
+
+        for record in reference_records:
+            address = record["address"].lower()
+
+            role = None
+
+            if sender == address:
+                role = "Sender"
+
+            if receiver == address:
+                role = (
+                    "Sender and receiver"
+                    if role == "Sender"
+                    else "Receiver"
+                )
+
+            if role is None:
+                continue
+
+            if address not in matched:
+                matched[address] = {
+                    "service": record["service"],
+                    "category": record["category"],
+                    "address": address,
+                    "chain": record.get("chain", "ethereum"),
+                    "source_name": record.get("source_name", ""),
+                    "source_url": record.get("source_url", ""),
+                    "evidence_type": record.get("evidence_type", ""),
+                    "confidence": record.get("confidence", ""),
+                    "verified": record.get("verified") is True,
+                    "notes": record.get("notes", ""),
+                    "verified_by": record.get("verified_by", ""),
+                    "verified_date": record.get("verified_date", ""),
+                    "transaction_roles": [],
+                    "transaction_count": 0,
+                }
+
+            item = matched[address]
+
+            if role not in item["transaction_roles"]:
+                item["transaction_roles"].append(role)
+
+            item["transaction_count"] += 1
+
+    return list(matched.values())
+
+
+def enrich_with_service_attributions(results):
+    results["attributions"] = get_service_attributions(results)
+
+    if results["mode_key"] == "demo":
+        results["attribution_notice"] = (
+            "Demo Mode uses fictional service names and addresses. "
+            "These records are for demonstration only and are not "
+            "real-world attribution evidence."
+        )
+    else:
+        results["attribution_notice"] = (
+            "Real Mode matches transaction participants against the "
+            "configured source-backed label dataset and attempts an "
+            "Etherscan Name Tag lookup where supported. A source-published "
+            "label is not proof of ownership or criminal activity."
+        )
+
+    return results
+
+
+# ============================================================
+# INTERACTIVE TRANSACTION GRAPH
+# ============================================================
+
+def make_graph_html(results):
+    if Network is None:
+        return """
+        <html><body style="background:#101827;color:white;
+        font-family:Arial;padding:24px">
+        <h3>Transaction graph unavailable</h3>
+        <p>Install PyVis: python -m pip install pyvis</p>
+        </body></html>
+        """
+
+    net = Network(
+        height="560px",
+        width="100%",
+        directed=True,
+        bgcolor="#101827",
+        font_color="#e5e7eb",
+        notebook=False,
+    )
+
+    net.barnes_hut(
+        gravity=-3500,
+        central_gravity=0.25,
+        spring_length=180,
+        spring_strength=0.035,
+        damping=0.12,
+    )
+
+    target = results["target_address"].lower()
+    nodes_added = set()
+
+    service_map = {
+        item["address"].lower(): item
+        for item in results.get("attributions", [])
+    }
+
+    def add_node(address, label=None, title=None, color="#38bdf8"):
+        address = address.lower()
+
+        if address in nodes_added:
+            return
+
+        net.add_node(
+            address,
+            label=label or shorten_address(address),
+            title=title or address,
+            color=color,
+            shape="dot",
+            size=25 if address == target else 17,
+        )
+
+        nodes_added.add(address)
+
+    add_node(
+        target,
+        "Target Wallet",
+        f"Target wallet: {target}",
+        "#a78bfa",
+    )
+
+    for tx in results.get("transactions", []):
+        sender = tx["from"].lower()
+        receiver = tx["to"].lower()
+
+        for address in (sender, receiver):
+            if address == target:
+                continue
+
+            if address in service_map:
+                item = service_map[address]
+                label = item["service"]
+                title = (
+                    f'{item["service"]}\n'
+                    f'Category: {item["category"]}\n'
+                    f'Address: {address}\n'
+                    f'Source: {item.get("source_name", "Unknown")}'
+                )
+                color = "#f59e0b"
+            else:
+                label = shorten_address(address)
+                title = address
+                color = "#38bdf8"
+
+            add_node(address, label, title, color)
+
+        try:
+            value = float(tx.get("value_eth", 0))
+        except (ValueError, TypeError):
+            value = 0
+
+        net.add_edge(
+            sender,
+            receiver,
+            label=f"{value:.4f} ETH",
+            title=f'Transaction: {tx.get("hash", "Demo transaction")}',
+            arrows="to",
+            color="#64748b",
+        )
+
+    try:
+        return net.generate_html(notebook=False)
+    except Exception:
+        app.logger.exception("Graph generation failed.")
+        return """
+        <html><body style="background:#101827;color:white;
+        font-family:Arial;padding:24px">
+        <h3>Could not render transaction graph</h3>
+        </body></html>
+        """
+
+
+# ============================================================
+# WALLET SUMMARY AND DEMO RISK SCORES
+# ============================================================
+
+def build_wallet_summary(results):
+    target = results["target_address"].lower()
+    wallets = {}
+    risk_profiles = {}
+
+    demo_scores = {
+        target: 85,
+        "0x2222222222222222222222222222222222222222": 65,
+        "0x3333333333333333333333333333333333333333": 35,
+        "0x4444444444444444444444444444444444444444": 55,
+    }
+
+    for tx in results.get("transactions", []):
+        sender = tx["from"].lower()
+        receiver = tx["to"].lower()
+
+        for address in (sender, receiver):
+            if address not in wallets:
+                wallets[address] = {
+                    "address": address,
+                    "short_address": shorten_address(address),
+                    "transaction_count": 0,
+                    "total_sent": 0.0,
+                    "total_received": 0.0,
+                    "risk_score": None,
+                    "risk_level": "Not assessed",
+                }
+
+            wallets[address]["transaction_count"] += 1
+
+        try:
+            value = float(tx.get("value_eth", 0))
+        except (ValueError, TypeError):
+            value = 0.0
+
+        wallets[sender]["total_sent"] += value
+        wallets[receiver]["total_received"] += value
+
+    for address, wallet in wallets.items():
+        if results["mode_key"] == "demo":
+            score = demo_scores.get(address, 25)
+            wallet["risk_score"] = score
+
+            if score >= 70:
+                level = "High"
+            elif score >= 40:
+                level = "Medium"
+            else:
+                level = "Low"
+
+            wallet["risk_level"] = level
+
+            risk_profiles[address] = {
+                "address": address,
+                "risk_score": score,
+                "risk_level": level,
+                "reason": (
+                    "Illustrative demo score; not a fraud probability."
+                ),
+            }
+
+    results["wallets"] = sorted(
+        wallets.values(),
+        key=lambda item: (
+            item["address"] != target,
+            item["address"],
+        ),
+    )
+
+    results["risk_profiles"] = risk_profiles
+    return results
+
+
+# ============================================================
+# FINALIZE INVESTIGATION RESULTS
+# ============================================================
+
+def finalize_results(results):
+    transactions = results.get("transactions", [])
+
+    results["total_transactions"] = len(transactions)
+
+    results["total_amount"] = round(
+        sum(float(tx.get("value_eth", 0)) for tx in transactions),
+        6,
+    )
+
+    results["summary"] = (
+        f'Analysed {len(transactions)} transaction(s) for '
+        f'{results["target_address"]}.'
+    )
+
+    enrich_with_service_attributions(results)
+    build_wallet_summary(results)
+
+    results["graph_html"] = make_graph_html(results)
+
+    return results
+
+
+# ============================================================
+# DEMO MODE
+# ============================================================
+
+def build_demo_trace(scenario_key):
+    scenario = SCENARIOS.get(
+        scenario_key,
+        SCENARIOS["ethereum"],
+    )
+
+    target = scenario["target"].lower()
+
+    exchange = SERVICE_REFERENCE_DATA[0]["address"]
+    mixer = SERVICE_REFERENCE_DATA[1]["address"]
+    bridge = SERVICE_REFERENCE_DATA[2]["address"]
+    defi = SERVICE_REFERENCE_DATA[3]["address"]
+
+    wallet_b = "0x2222222222222222222222222222222222222222"
+    wallet_c = "0x3333333333333333333333333333333333333333"
+    wallet_d = "0x4444444444444444444444444444444444444444"
+
+    now = int(datetime.now(timezone.utc).timestamp())
+
+    transactions = [
+        (target, wallet_b, 1.25, 3600),
+        (wallet_b, exchange, 0.80, 3000),
+        (exchange, wallet_c, 0.45, 2400),
+        (wallet_c, mixer, 0.30, 1800),
+        (mixer, bridge, 0.20, 1200),
+        (bridge, defi, 0.15, 600),
+        (defi, target, 0.05, 300),
+        (wallet_d, target, 0.10, 120),
+    ]
+
+    formatted_transactions = []
+
+    for index, (sender, receiver, value, age) in enumerate(
+        transactions, start=1
+    ):
+        timestamp = now - age
+
+        formatted_transactions.append({
+            "hash": f"DEMO-TX-{index:03d}",
+            "block_number": 21000000 + index,
+            "timestamp": timestamp,
+            "time": utc_timestamp(timestamp),
+            "from": sender.lower(),
+            "to": receiver.lower(),
+            "value_eth": value,
+            "is_demo": True,
+        })
+
+    if scenario_key == "suspicious":
+        formatted_transactions[0]["value_eth"] = 12.5
+        formatted_transactions[3]["value_eth"] = 7.3
+        formatted_transactions[4]["value_eth"] = 5.1
+
+    results = {
+        "mode": "Demo Mode",
+        "mode_key": "demo",
+        "scenario_key": scenario_key,
+        "scenario_name": scenario["name"],
+        "scenario_description": scenario["description"],
+        "target_address": target,
+        "transactions": formatted_transactions,
+        "data_source": "Simulated demonstration data",
+        "is_demo": True,
+    }
+
+    return finalize_results(results)
+
+
+# ============================================================
+# REAL ETHEREUM MODE — ETHERSCAN API V2
+# ============================================================
+
+def fetch_ethereum_trace(address):
+    address = normalize_address(address)
+
+    if not ETHERSCAN_API_KEY:
+        raise ValueError(
+            "ETHERSCAN_API_KEY is not configured. Set your API key "
+            "in the terminal before starting the application."
+        )
+
+    params = {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": address,
+        "startblock": "0",
+        "endblock": "99999999",
+        "page": "1",
+        "offset": "25",
+        "sort": "desc",
+        "apikey": ETHERSCAN_API_KEY,
+    }
+
+    try:
+        response = requests.get(
+            ETHERSCAN_API_URL,
+            params=params,
+            timeout=25,
+        )
+        response.raise_for_status()
+        payload = response.json()
+
+    except requests.RequestException:
+        app.logger.exception("Etherscan transaction request failed.")
+        raise ValueError(
+            "Could not connect to Etherscan. Check your internet "
+            "connection and try again."
+        )
+
+    except ValueError:
+        raise ValueError(
+            "Etherscan returned an invalid response."
+        )
+
+    status = str(payload.get("status", ""))
+    message = str(payload.get("message", ""))
+    raw_result = payload.get("result", [])
+
+    if status == "0":
+        if (
+            isinstance(raw_result, str)
+            and "no transactions" in raw_result.lower()
+        ):
+            raw_result = []
+        elif not isinstance(raw_result, list):
+            app.logger.warning(
+                "Etherscan API returned an error: %s",
+                message,
+            )
+            raise ValueError(
+                "Etherscan did not return transaction data. "
+                "Check your API key, API limits and request."
+            )
+
+    if not isinstance(raw_result, list):
+        raise ValueError(
+            "Unexpected transaction data returned by Etherscan."
+        )
+
+    transactions = []
+
+    for item in raw_result:
+        try:
+            sender = normalize_address(item.get("from", ""))
+            recipient_raw = item.get("to", "")
+
+            if not recipient_raw:
+                continue
+
+            recipient = normalize_address(recipient_raw)
+
+            value_wei = int(item.get("value", "0"))
+            value_eth = value_wei / 10**18
+
+            timestamp = int(item.get("timeStamp", "0"))
+            block_number = int(item.get("blockNumber", "0"))
+
+            transactions.append({
+                "hash": item.get("hash", ""),
+                "block_number": block_number,
+                "timestamp": timestamp,
+                "time": utc_timestamp(timestamp),
+                "from": sender,
+                "to": recipient,
+                "value_eth": value_eth,
+                "is_demo": False,
+            })
+
+        except (ValueError, TypeError, OverflowError):
+            continue
+
+    results = {
+        "mode": "Real Ethereum Mode",
+        "mode_key": "real",
+        "scenario_key": "",
+        "scenario_name": "Ethereum Wallet Investigation",
+        "scenario_description": (
+            "Real Ethereum mainnet transactions retrieved through "
+            "Etherscan. Up to 25 normal transactions are requested."
+        ),
+        "target_address": address,
+        "transactions": transactions,
+        "data_source": "Etherscan API V2 — Ethereum mainnet",
+        "is_demo": False,
+    }
+
+    return finalize_results(results)
+
+
+# ============================================================
+# DASHBOARD
+# ============================================================
+
+def render_dashboard(results=None, error=None, status=200):
+    return render_template(
+        "dashboard.html",
+        results=results,
+        scenarios=SCENARIOS,
+        error=error,
+    ), status
+
+
+@app.route("/", methods=["GET"])
+def index():
+    global LAST_RESULTS
+
+    if LAST_RESULTS is None:
+        LAST_RESULTS = build_demo_trace("ethereum")
+
+    return render_dashboard(results=LAST_RESULTS)
+
+
+@app.route("/trace", methods=["POST"])
+def trace():
+    global LAST_RESULTS
+
+    mode = request.form.get("mode", "demo").strip().lower()
+    scenario_key = request.form.get(
+        "scenario", "ethereum"
+    ).strip()
+    wallet_address = request.form.get(
+        "wallet_address", ""
+    ).strip()
+
+    try:
+        if mode in ("real", "ethereum", "real_ethereum"):
+            if not wallet_address:
+                raise ValueError(
+                    "Enter an Ethereum wallet address to investigate."
+                )
+
+            results = fetch_ethereum_trace(wallet_address)
+
+        else:
+            if scenario_key not in SCENARIOS:
+                scenario_key = "ethereum"
+
+            results = build_demo_trace(scenario_key)
+
+        LAST_RESULTS = results
+        return render_dashboard(results=results)
+
+    except ValueError as exc:
+        return render_dashboard(
+            results=LAST_RESULTS,
+            error=str(exc),
+            status=400,
+        )
+
+    except Exception:
+        app.logger.exception("Unexpected tracing error.")
+
+        return render_dashboard(
+            results=LAST_RESULTS,
+            error=(
+                "An unexpected error occurred. Check the VS Code "
+                "terminal for details. Do not share your API key."
+            ),
+            status=500,
+        )
+
+
+# ============================================================
+# CSV REPORT
+# ============================================================
+
+@app.route("/get_report", methods=["GET"])
+def get_report():
+    global LAST_RESULTS
+
+    if LAST_RESULTS is None:
+        LAST_RESULTS = build_demo_trace("ethereum")
+
+    results = LAST_RESULTS
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    writer.writerow(["CryptoTrace Investigation Report"])
+    writer.writerow([
+        "Generated UTC",
+        datetime.now(timezone.utc).isoformat(),
+    ])
+    writer.writerow(["Mode", results.get("mode", "")])
+    writer.writerow(["Data Source", results.get("data_source", "")])
+    writer.writerow(["Target Wallet", results.get("target_address", "")])
+    writer.writerow([
+        "Transactions",
+        results.get("total_transactions", 0),
+    ])
+    writer.writerow([
+        "Total ETH Value",
+        results.get("total_amount", 0),
+    ])
+
+    writer.writerow([])
+    writer.writerow([
+        "Transaction Hash",
+        "Timestamp UTC",
+        "Block Number",
+        "From",
+        "To",
+        "Value ETH",
+        "Demo Transaction",
+    ])
+
+    for tx in results.get("transactions", []):
+        writer.writerow([
+            tx.get("hash", ""),
+            tx.get("time", ""),
+            tx.get("block_number", ""),
+            tx.get("from", ""),
+            tx.get("to", ""),
+            tx.get("value_eth", 0),
+            "Yes" if tx.get("is_demo") else "No",
+        ])
+
+    writer.writerow([])
+    writer.writerow(["Service Attribution Results"])
+    writer.writerow([
+        "Service",
+        "Category",
+        "Address",
+        "Chain",
+        "Transaction Roles",
+        "Transaction Count",
+        "Evidence Type",
+        "Source Name",
+        "Source URL",
+        "Verified",
+        "Confidence",
+        "Verified By",
+        "Verified Date",
+        "Notes",
+    ])
+
+    for item in results.get("attributions", []):
+        writer.writerow([
+            item.get("service", ""),
+            item.get("category", ""),
+            item.get("address", ""),
+            item.get("chain", ""),
+            "; ".join(item.get("transaction_roles", [])),
+            item.get("transaction_count", 0),
+            item.get("evidence_type", ""),
+            item.get("source_name", ""),
+            item.get("source_url", ""),
+            "Yes" if item.get("verified") else "No",
+            item.get("confidence", ""),
+            item.get("verified_by", ""),
+            item.get("verified_date", ""),
+            item.get("notes", ""),
+        ])
+
+    writer.writerow([])
+    writer.writerow([
+        "Caution",
+        "A service address match does not identify an individual or "
+        "prove criminal activity. Demo labels are fictional.",
+    ])
+
+    output.seek(0)
+
+    return send_file(
+        io.BytesIO(output.getvalue().encode("utf-8-sig")),
+        mimetype="text/csv; charset=utf-8",
+        as_attachment=True,
+        download_name="cryptotrace_report.csv",
+    )
+
+
+# ============================================================
+# RUN SERVER
+# ============================================================
+
+if __name__ == "__main__":
+    app.run(
+        host="127.0.0.1",
+        port=5000,
+        debug=True,
+    )

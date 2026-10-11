@@ -1,0 +1,52 @@
+Here is a comprehensive System Handover Summary. You can save this text or copy-paste it directly into your next AI session so any other assistant can pick up exactly where we left off without losing momentum.
+------------------------------
+## 📑 PROJECT HANDOVER WORKSPACE STATUS
+Project Name: Real-Time Crypto Fraud Attribution System (SIH Problem Statement ID: 26183)
+Team Name: Tech Titans
+Target Beneficiary: Ministry of Home Affairs / Indian Cyber Crime Coordination Centre (I4C)
+System Milestone Reached: Fully working Three-Tier Local Architecture Prototype with Reactive Web UI Dashboard and dynamic multi-hop trace routing.
+------------------------------
+## 📂 Active System File Tree
+The local project directory is structured exactly as follows inside D:\sih\new\:
+
+D:\sih\new\
+│   app.py                  <-- Flask Application Server Core (Main Python entrypoint)
+└───templates\
+        dashboard.html       <-- UI Presentation Core Layout File (Responsive HTML/CSS/JS)
+        dynamic_crypto_map.html <-- Automated PyVis Layout Render Frame (Self-generated)
+
+------------------------------
+## 🛠️ Feature Matrix Implemented & Verified
+
+   1. Automated Multi-Hop Tracing Core (app.py): Operates on an immutable transaction ledger using Breadth-First matching loops to trace recursive hops from an initial victim source until finding an explicit exchange wallet threshold.
+   2. Behavioral Heuristics Risk scoring Module: Audits intermediate address entities against transaction frequencies, velocity windows, fund-peeling traits, and mixer interactions to assign dynamic severity labels (LOW, MEDIUM, HIGH, CRITICAL).
+   3. Interactive Graph Topology Renderer: Uses pyvis utilizing fully inline embedded rendering resources to safely generate rich HTML topology layouts across local security restriction profiles. Node positions scale dynamically to clear overlap clutter.
+   4. Reactive Frontend Control Console (dashboard.html): Uses asynchronous JavaScript Fetch API integrations to handle search submissions, seamlessly routing queries to Python without page reloads, and managing dynamic multi-tab context switches.
+   5. Standardized Law Enforcement Reporting Engine: Compiles an official markdown forensics investigation log (investigation_report.md) behind the scenes every time an active tracing routine executes.
+
+------------------------------
+## 🧪 Demo Search Signatures (For Presentation Testing)
+
+* Scenario A (Ethereum Mainnet/USDT Multi-Hop Scam Loop):
+* Input Wallet Hash: 0x742d35Cc6634C0532925a3b844Bc454e4438f44e
+   * Expected Terminal Output: Traces out a 4-Hop chain hitting Binance International (Status: SECURED).
+* Scenario B (Bitcoin Ransomware/Layering Chain):
+* Input Wallet Hash: bc1q4asxd73xclkyg757m9kzzgqch0t4u9mmun7nxv
+   * Expected Terminal Output: Traces out a 3-Hop chain hitting WazirX India (Status: FREEZE ORDER SENT).
+
+------------------------------
+## 🏁 Execution Commands to Resume Work
+When restarting the project execution console, execute these actions sequentially:
+
+   1. Launch the background terminal loops: python app.py
+   2. Open any browser tab window and navigate directly to: http://127.0.0.1:5000
+   3. Perform a forced hardware data reload to sweep browser memory clean: CTRL + F5
+
+------------------------------
+When you are ready to continue your work session, let me know:
+
+* Would you like to introduce a database layer (like SQLite or Neo4j) to make the transaction history permanent?
+* Do you want to build out a custom dashboard for the Intelligence Metrics tab?
+* Should we prepare a Readme file or a detailed Slide-by-Slide script guide for your live presentation?
+
+

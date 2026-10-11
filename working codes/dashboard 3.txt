@@ -1,0 +1,665 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoTrace | Blockchain Investigation</title>
+
+    <style>
+        :root {
+            --bg: #f3f6fb;
+            --panel: #ffffff;
+            --text: #172033;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --primary: #4f46e5;
+            --green: #16a34a;
+            --orange: #ea580c;
+            --red: #dc2626;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        header {
+            background: #111827;
+            color: #fff;
+            padding: 23px 5%;
+        }
+
+        header h1 {
+            margin: 0 0 7px;
+            font-size: 28px;
+        }
+
+        header p {
+            margin: 0;
+            color: #cbd5e1;
+        }
+
+        main {
+            width: 92%;
+            max-width: 1450px;
+            margin: 25px auto;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
+        }
+
+        h2 {
+            font-size: 19px;
+            margin: 0 0 18px;
+        }
+
+        h3 {
+            font-size: 16px;
+            margin-top: 0;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+            align-items: end;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #fff;
+            font-size: 14px;
+        }
+
+        button, .button {
+            display: inline-block;
+            padding: 12px 17px;
+            border: none;
+            border-radius: 8px;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        button:hover, .button:hover { opacity: 0.88; }
+        .button-secondary { background: #334155; }
+
+        .help {
+            margin-top: 7px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .error {
+            padding: 14px;
+            margin-bottom: 18px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 9px;
+            color: #991b1b;
+            overflow-wrap: anywhere;
+        }
+
+        .notice {
+            padding: 14px 16px;
+            margin-bottom: 18px;
+            border-radius: 9px;
+            background: #eff6ff;
+            color: #1e40af;
+            font-size: 13px;
+            overflow-wrap: anywhere;
+        }
+
+        .warning {
+            padding: 14px 16px;
+            margin: 15px 0;
+            border-radius: 9px;
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            color: #9a3412;
+            font-size: 13px;
+            overflow-wrap: anywhere;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            padding: 20px;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            min-width: 0;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .stat-value {
+            margin-top: 9px;
+            font-size: 23px;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .table-wrap { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            vertical-align: top;
+            overflow-wrap: anywhere;
+        }
+
+        th {
+            background: #f8fafc;
+            white-space: nowrap;
+        }
+
+        td code, code {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            font-size: 12px;
+        }
+
+        a {
+            color: #4338ca;
+        }
+
+        .graph-frame {
+            width: 100%;
+            height: 550px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #0b1220;
+        }
+
+        .wallet-list {
+            padding-left: 22px;
+        }
+
+        .wallet-list li {
+            margin: 10px 0;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .badge-demo {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-verified {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-unknown {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        .section-subtitle {
+            margin-top: -8px;
+            margin-bottom: 18px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .empty {
+            padding: 22px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            color: var(--muted);
+            text-align: center;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .score {
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        footer {
+            text-align: center;
+            padding: 10px 20px 30px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        @media (max-width: 800px) {
+            main { width: 94%; }
+            .form-grid, .stats { grid-template-columns: 1fr; }
+            .panel { padding: 16px; }
+            .graph-frame { height: 450px; }
+            header h1 { font-size: 24px; }
+        }
+    </style>
+</head>
+
+<body>
+<header>
+    <h1>CryptoTrace</h1>
+    <p>Blockchain Investigation &amp; Cryptocurrency Service Attribution</p>
+</header>
+
+<main>
+
+    <!-- INVESTIGATION FORM -->
+    <section class="panel">
+        <h2>Start an investigation</h2>
+
+        {% if error %}
+        <div class="error">
+            <strong>Investigation failed:</strong> {{ error }}
+        </div>
+        {% endif %}
+
+        <form action="{{ url_for('trace') }}" method="POST">
+            <div class="form-grid">
+                <div>
+                    <label for="mode">Data source</label>
+                    <select id="mode" name="mode" required>
+                        <option value="demo"
+                            {% if results and results.mode == 'demo' %}selected{% endif %}>
+                            Demo Mode
+                        </option>
+                        <option value="real"
+                            {% if results and results.mode == 'real' %}selected{% endif %}>
+                            Real Ethereum Mode
+                        </option>
+                    </select>
+                    <div class="help">
+                        Demo uses simulated data. Real mode queries Ethereum Mainnet.
+                    </div>
+                </div>
+
+                <div id="scenario-container">
+                    <label for="scenario">Demo scenario</label>
+                    <select id="scenario" name="scenario">
+                        {% for key, scenario in scenarios.items() %}
+                        <option value="{{ key }}"
+                            {% if request.form.get('scenario', 'ethereum') == key %}selected{% endif %}>
+                            {{ scenario.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="wallet_address">Ethereum wallet address</label>
+                    <input
+                        type="text"
+                        id="wallet_address"
+                        name="wallet_address"
+                        placeholder="0x..."
+                        value="{{ request.form.get('wallet_address', '') }}"
+                        autocomplete="off"
+                    >
+                    <div class="help">
+                        Required for Real Ethereum Mode.
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 18px;">
+                <button type="submit">Analyze transactions</button>
+            </div>
+        </form>
+    </section>
+
+    {% if results %}
+
+    <!-- DATA NOTICE -->
+    <div class="notice">
+        <strong>Investigation notice:</strong>
+        {{ results.notice }}
+    </div>
+
+    <!-- STATISTICS -->
+    <section class="stats">
+        <div class="stat">
+            <div class="stat-label">Data source</div>
+            <div class="stat-value">
+                {% if results.mode == 'real' %}
+                    Ethereum Mainnet
+                {% else %}
+                    Demo Mode
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">Transactions retrieved</div>
+            <div class="stat-value">{{ results.total_transactions }}</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">ETH value in listed transactions</div>
+            <div class="stat-value">{{ results.total_amount }} ETH</div>
+        </div>
+    </section>
+
+    <!-- INVESTIGATION SUMMARY -->
+    <section class="panel">
+        <h2>Investigation summary</h2>
+
+        <p><strong>Scenario:</strong> {{ results.scenario_name }}</p>
+
+        <p><strong>Target wallet:</strong></p>
+        <code>{{ results.wallet }}</code>
+
+        <div class="actions" style="margin-top: 18px;">
+            <a class="button" href="{{ url_for('get_report') }}">
+                Download investigation report (CSV)
+            </a>
+        </div>
+    </section>
+
+    <!-- INTERACTIVE GRAPH -->
+    <section class="panel">
+        <h2>Transaction network graph</h2>
+        <p class="section-subtitle">
+            Follow transaction arrows between wallets. Hover over a node or edge
+            to inspect available details.
+        </p>
+
+        {% if results.total_transactions > 0 %}
+            <iframe
+                class="graph-frame"
+                title="Interactive blockchain transaction graph"
+                srcdoc="{{ results.graph_html|e }}"
+                sandbox="allow-scripts allow-same-origin"
+                loading="lazy"
+            ></iframe>
+        {% else %}
+            <div class="empty">
+                No transactions were returned for this address.
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- EXCHANGE AND VASP ATTRIBUTION -->
+    <section class="panel" id="attributions">
+        <h2>Exchange &amp; VASP Attribution</h2>
+
+        <p class="section-subtitle">
+            Identifies addresses that match the service reference records
+            configured in the backend. Supported categories include centralized
+            exchanges, VASPs, mixers, bridges and DeFi protocols.
+        </p>
+
+        {% if results.attribution_notice %}
+        <div class="notice">
+            {{ results.attribution_notice }}
+        </div>
+        {% endif %}
+
+        {% if results.attributions %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Category</th>
+                        <th>Matched address</th>
+                        <th>Transaction role</th>
+                        <th>Transactions</th>
+                        <th>Evidence source</th>
+                        <th>Confidence / status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in results.attributions %}
+                    <tr>
+                        <td><strong>{{ item.service }}</strong></td>
+                        <td>{{ item.category }}</td>
+                        <td><code>{{ item.address }}</code></td>
+                        <td>
+                            {% for role in item.transaction_roles %}
+                                {% if role == 'sender' %}
+                                    Sent
+                                {% elif role == 'receiver' %}
+                                    Received
+                                {% endif %}
+                                {% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td>{{ item.transaction_count }}</td>
+                        <td>
+                            {{ item.source_name or 'Not provided' }}
+                            {% if item.source_url %}
+                                <br>
+                                <a href="{{ item.source_url }}"
+                                   target="_blank"
+                                   rel="noopener noreferrer">View source</a>
+                            {% endif %}
+                            {% if item.notes %}
+                                <p class="muted">{{ item.notes }}</p>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.evidence_type == 'simulated_demo_record' %}
+                                <span class="badge badge-demo">Simulated demo</span>
+                            {% elif item.verified %}
+                                <span class="badge badge-verified">Verified record</span>
+                            {% else %}
+                                <span class="badge badge-unknown">Unverified</span>
+                            {% endif %}
+                            <p class="muted">{{ item.confidence }}</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% else %}
+        <div class="empty">
+            <strong>No service attribution matches found.</strong>
+            <p>
+                {% if results.mode == 'demo' %}
+                    The current simulated transaction set does not contain any
+                    of the demonstration service addresses. A match will appear
+                    only when an address in a transaction matches a demo record.
+                {% else %}
+                    None of the retrieved transaction addresses matched the
+                    currently configured verified service reference records.
+                    This does not prove that the wallet is unrelated to an exchange
+                    or other service.
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+
+        <div class="warning">
+            <strong>Evidence limitation:</strong>
+            A service attribution is only as reliable as its source. A wallet
+            match does not identify an individual account holder and does not,
+            by itself, establish criminal activity. Demo labels are fictional.
+        </div>
+    </section>
+
+    <!-- WALLETS -->
+    <section class="panel">
+        <h2>Wallets found</h2>
+
+        {% if results.wallets %}
+        <ul class="wallet-list">
+            {% for wallet in results.wallets %}
+            <li><code>{{ wallet }}</code></li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="empty">No wallet addresses found.</div>
+        {% endif %}
+    </section>
+
+    <!-- RISK SCORES -->
+    <section class="panel">
+        <h2>Wallet risk profiles</h2>
+
+        {% if results.mode == 'demo' and results.risk_profiles %}
+        <p class="section-subtitle">
+            These scores are hardcoded illustrative demo values. They are not
+            produced by a validated fraud-detection model.
+        </p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Wallet</th>
+                        <th>Demo score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for wallet, score in results.risk_profiles.items() %}
+                    <tr>
+                        <td><code>{{ wallet }}</code></td>
+                        <td class="score">{{ score }}/100</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% else %}
+        <div class="empty">
+            Real-mode risk scores have not been implemented yet. This dashboard
+            does not currently calculate a fraud probability for real wallets.
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- TRANSACTION TABLE -->
+    <section class="panel">
+        <h2>Transaction details</h2>
+
+        {% if results.edges %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sender</th>
+                        <th>Receiver</th>
+                        <th>Value (ETH)</th>
+                        <th>Timestamp (UTC)</th>
+                        <th>Transaction</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in results.edges %}
+                    <tr>
+                        <td><code>{{ tx.sender }}</code></td>
+                        <td><code>{{ tx.receiver }}</code></td>
+                        <td>{{ tx.value }}</td>
+                        <td>{{ tx.timestamp }}</td>
+                        <td>
+                            {% if results.mode == 'real'
+                                  and tx.hash
+                                  and tx.hash.startswith('0x') %}
+                                <a href="https://etherscan.io/tx/{{ tx.hash }}"
+                                   target="_blank"
+                                   rel="noopener noreferrer">View on Etherscan</a>
+                            {% else %}
+                                <code>{{ tx.hash }}</code>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty">No transactions to display.</div>
+        {% endif %}
+    </section>
+
+    {% endif %}
+
+</main>
+
+<footer>
+    CryptoTrace — Educational blockchain investigation prototype.
+    Attribution and risk indicators require independent verification.
+</footer>
+
+<script>
+    const modeSelect = document.getElementById("mode");
+    const scenarioContainer = document.getElementById("scenario-container");
+    const scenarioSelect = document.getElementById("scenario");
+    const walletInput = document.getElementById("wallet_address");
+
+    function updateModeFields() {
+        const isReal = modeSelect.value === "real";
+
+        scenarioContainer.style.display = isReal ? "none" : "block";
+        scenarioSelect.disabled = isReal;
+        walletInput.required = isReal;
+    }
+
+    modeSelect.addEventListener("change", updateModeFields);
+    updateModeFields();
+</script>
+
+</body>
+</html>

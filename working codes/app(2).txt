@@ -1,0 +1,500 @@
+
+import os
+import io
+import csv
+import html
+from datetime import datetime, timezone
+
+import requests
+from flask import Flask, render_template, request, send_file
+
+try:
+    from pyvis.network import Network
+except ImportError:
+    Network = None
+
+app = Flask(__name__)
+
+ETHERSCAN_API_URL = "https://api.etherscan.io/v2/api"
+ETHERSCAN_API_KEY = os.getenv("ETHERSCAN_API_KEY", "").strip()
+
+SCENARIOS = {
+    "ethereum": {
+        "name": "Ethereum Sample Investigation",
+        "wallet": "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe",
+    },
+    "suspicious": {
+        "name": "Suspicious Wallet Demo",
+        "wallet": "0x1111111111111111111111111111111111111111",
+    },
+}
+
+LAST_RESULTS = None
+
+
+def utc_timestamp(timestamp):
+    """Convert a Unix timestamp into a readable UTC string."""
+    try:
+        return datetime.fromtimestamp(
+            int(timestamp), tz=timezone.utc
+        ).strftime("%Y-%m-%d %H:%M:%S UTC")
+    except (TypeError, ValueError, OSError):
+        return "Unknown"
+
+
+
+def make_graph_html(results):
+    """Create a cleaner, interactive graph for blockchain investigations."""
+    if Network is None:
+        return """
+        <html>
+        <body style="font-family:Arial;padding:25px">
+            <h3>Graph unavailable</h3>
+            <p>Install PyVis: pip install pyvis</p>
+        </body>
+        </html>
+        """
+
+    net = Network(
+        height="520px",
+        width="100%",
+        directed=True,
+        bgcolor="#0b1220",
+        font_color="#e5e7eb",
+        notebook=False,
+        cdn_resources="in_line",
+    )
+
+    target = results.get("wallet", "")
+    transactions = results.get("edges", [])
+
+    # Identify each wallet's relationship to the target.
+    wallet_roles = {target: "target"}
+    wallet_activity = {}
+
+    for tx in transactions:
+        sender = tx.get("sender", "")
+        receiver = tx.get("receiver", "")
+
+        if not sender or not receiver:
+            continue
+
+        wallet_activity[sender] = wallet_activity.get(sender, 0) + 1
+        wallet_activity[receiver] = wallet_activity.get(receiver, 0) + 1
+
+        if sender == target and receiver != target:
+            wallet_roles.setdefault(receiver, "outgoing")
+        elif receiver == target and sender != target:
+            wallet_roles.setdefault(sender, "incoming")
+
+    # Keep the target wallet visually prominent.
+    all_wallets = set(wallet_activity)
+    if target:
+        all_wallets.add(target)
+
+    for address in all_wallets:
+        role = wallet_roles.get(address, "connected")
+
+        if role == "target":
+            color = "#8b5cf6"
+            size = 36
+            border = "#c4b5fd"
+        elif role == "incoming":
+            color = "#16a34a"
+            size = 23
+            border = "#86efac"
+        elif role == "outgoing":
+            color = "#f97316"
+            size = 23
+            border = "#fdba74"
+        else:
+            color = "#0ea5e9"
+            size = 18
+            border = "#7dd3fc"
+
+        label = (
+            address if len(address) <= 14
+            else address[:8] + "..." + address[-5:]
+        )
+
+        net.add_node(
+            address,
+            label=label,
+            title=f"Wallet: {address}\nTransactions shown: "
+                  f"{wallet_activity.get(address, 0)}",
+            color={
+                "background": color,
+                "border": border,
+                "highlight": {
+                    "background": "#f8fafc",
+                    "border": color,
+                },
+            },
+            shape="dot",
+            size=size,
+            borderWidth=2,
+            font={
+                "size": 13,
+                "face": "Arial",
+                "color": "#e5e7eb",
+                "strokeWidth": 3,
+                "strokeColor": "#0b1220",
+            },
+        )
+
+    # Draw directed transaction edges.
+    for tx in transactions:
+        sender = tx.get("sender", "")
+        receiver = tx.get("receiver", "")
+
+        if not sender or not receiver:
+            continue
+
+        value = tx.get("value", 0)
+        timestamp = tx.get("timestamp", "Unknown")
+        tx_hash = tx.get("hash", "")
+
+        if receiver == target:
+            edge_color = "#22c55e"
+        elif sender == target:
+            edge_color = "#f97316"
+        else:
+            edge_color = "#64748b"
+
+        tooltip = (
+            f"From: {sender}\n"
+            f"To: {receiver}\n"
+            f"Value: {value} ETH\n"
+            f"Timestamp: {timestamp}\n"
+            f"Transaction: {tx_hash}"
+        )
+
+        net.add_edge(
+            sender,
+            receiver,
+            arrows={"to": {"enabled": True, "scaleFactor": 0.8}},
+            color={
+                "color": edge_color,
+                "highlight": "#c4b5fd",
+                "hover": "#f8fafc",
+                "opacity": 0.85,
+            },
+            width=2,
+            label=f"{value:g} ETH" if isinstance(value, (int, float)) else str(value),
+            title=tooltip,
+            font={
+                "size": 10,
+                "color": "#cbd5e1",
+                "strokeWidth": 3,
+                "strokeColor": "#0b1220",
+                "align": "middle",
+            },
+            smooth={"type": "dynamic"},
+        )
+
+    # Arrange the network to reduce clutter.
+    net.set_options("""
+    {
+      "interaction": {
+        "hover": true,
+        "navigationButtons": true,
+        "keyboard": true,
+        "multiselect": true,
+        "tooltipDelay": 150,
+        "hideEdgesOnDrag": true
+      },
+      "physics": {
+        "enabled": true,
+        "solver": "forceAtlas2Based",
+        "forceAtlas2Based": {
+          "gravitationalConstant": -65,
+          "centralGravity": 0.015,
+          "springLength": 170,
+          "springConstant": 0.06,
+          "damping": 0.55,
+          "avoidOverlap": 1
+        },
+        "stabilization": {
+          "enabled": true,
+          "iterations": 250,
+          "updateInterval": 25,
+          "fit": true
+        }
+      },
+      "edges": {
+        "selectionWidth": 3,
+        "hoverWidth": 2,
+        "arrows": {
+          "to": {
+            "enabled": true,
+            "scaleFactor": 0.8
+          }
+        }
+      }
+    }
+    """)
+
+    return net.generate_html(notebook=False)
+
+
+
+def build_demo_trace(scenario_key):
+    """Return a sample investigation. All transactions here are simulated."""
+    scenario = SCENARIOS.get(scenario_key, SCENARIOS["ethereum"])
+    wallet = scenario["wallet"]
+
+    wallet_b = "0x2222222222222222222222222222222222222222"
+    wallet_c = "0x3333333333333333333333333333333333333333"
+    wallet_d = "0x4444444444444444444444444444444444444444"
+
+    now = int(datetime.now(timezone.utc).timestamp())
+
+    raw_transactions = [
+        (wallet, wallet_b, 1.25, now - 3600, "demo_tx_001"),
+        (wallet_b, wallet_c, 0.75, now - 3000, "demo_tx_002"),
+        (wallet_c, wallet_d, 0.25, now - 2400, "demo_tx_003"),
+        (wallet_d, wallet, 0.10, now - 1800, "demo_tx_004"),
+        (wallet_b, wallet_d, 0.20, now - 1200, "demo_tx_005"),
+    ]
+
+    edges = []
+    for sender, receiver, value, timestamp, tx_hash in raw_transactions:
+        edges.append({
+            "sender": sender,
+            "receiver": receiver,
+            "value": value,
+            "timestamp": utc_timestamp(timestamp),
+            "hash": tx_hash,
+        })
+
+    wallets = sorted({
+        address
+        for tx in edges
+        for address in (tx["sender"], tx["receiver"])
+    })
+
+    risk_profiles = {
+        wallet: 85,
+        wallet_b: 65,
+        wallet_c: 35,
+        wallet_d: 55,
+    }
+
+    results = {
+        "mode": "demo",
+        "scenario_name": scenario["name"],
+        "wallet": wallet,
+        "edges": edges,
+        "wallets": wallets,
+        "path": [wallet, wallet_b, wallet_c, wallet_d],
+        "total_transactions": len(edges),
+        "total_amount": round(sum(tx["value"] for tx in edges), 6),
+        "risk_profiles": risk_profiles,
+        "graph_html": "",
+        "notice": "Demo transactions are simulated and are not blockchain evidence.",
+    }
+
+    results["graph_html"] = make_graph_html(results)
+    return results
+
+
+def fetch_ethereum_trace(address):
+    """Fetch recent normal Ethereum transactions from Etherscan API V2."""
+    if not ETHERSCAN_API_KEY:
+        raise ValueError(
+            "Etherscan API key is missing. Set ETHERSCAN_API_KEY in "
+            "PowerShell, then restart the application."
+        )
+
+    if not address.startswith("0x") or len(address) != 42:
+        raise ValueError(
+            "Enter a valid Ethereum wallet address (0x followed by 40 hexadecimal characters)."
+        )
+
+    try:
+        int(address[2:], 16)
+    except ValueError:
+        raise ValueError("The wallet address contains invalid characters.")
+
+    params = {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": address,
+        "startblock": "0",
+        "endblock": "99999999",
+        "page": "1",
+        "offset": "25",
+        "sort": "desc",
+        "apikey": ETHERSCAN_API_KEY,
+    }
+
+    try:
+        response = requests.get(
+            ETHERSCAN_API_URL,
+            params=params,
+            timeout=25,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException:
+        raise ValueError(
+            "Could not connect to Etherscan. Check your internet connection and try again."
+        )
+    except ValueError as exc:
+        if str(exc).startswith("Could not connect"):
+            raise
+        raise ValueError("Etherscan returned an unreadable response.")
+
+    status = str(payload.get("status", ""))
+    message = str(payload.get("message", ""))
+    api_result = payload.get("result", [])
+
+    if status != "1":
+        detail = str(api_result)
+
+        if "no transactions found" in detail.lower():
+            api_result = []
+        else:
+            # Do not print or display the request URL because it contains the API key.
+            raise ValueError(
+                f"Etherscan API error: {html.escape(detail[:250]) or message or 'Unknown API error'}. "
+                "Check your API key and try again."
+            )
+
+    if not isinstance(api_result, list):
+        raise ValueError("Etherscan returned data in an unexpected format.")
+
+    edges = []
+    for tx in api_result:
+        try:
+            value_eth = int(tx.get("value", "0")) / 10**18
+            timestamp = utc_timestamp(tx.get("timeStamp", ""))
+        except (TypeError, ValueError):
+            value_eth = 0
+            timestamp = "Unknown"
+
+        edges.append({
+            "sender": tx.get("from", ""),
+            "receiver": tx.get("to", "") or "(contract creation)",
+            "value": round(value_eth, 8),
+            "timestamp": timestamp,
+            "hash": tx.get("hash", ""),
+        })
+
+    wallets = sorted({
+        addr
+        for tx in edges
+        for addr in (tx["sender"], tx["receiver"])
+        if addr and addr != "(contract creation)"
+    })
+
+    results = {
+        "mode": "real",
+        "scenario_name": "Ethereum Mainnet",
+        "wallet": address,
+        "edges": edges,
+        "wallets": wallets,
+        "path": [],
+        "total_transactions": len(edges),
+        "total_amount": round(sum(tx["value"] for tx in edges), 8),
+        # Real blockchain data is not automatically assigned a risk score.
+        "risk_profiles": {},
+        "graph_html": "",
+        "notice": (
+            "Real Ethereum Mainnet transaction data from Etherscan. "
+            "This view does not establish that any wallet is fraudulent."
+        ),
+    }
+
+    results["graph_html"] = make_graph_html(results)
+    return results
+
+
+def render_dashboard(results=None, error=None, status=200):
+    return render_template(
+        "dashboard.html",
+        results=results,
+        scenarios=SCENARIOS,
+        error=error,
+    ), status
+
+
+@app.route("/", methods=["GET"])
+def index():
+    return render_dashboard()
+
+
+@app.route("/trace", methods=["POST"])
+def trace():
+    global LAST_RESULTS
+
+    mode = request.form.get("mode", "demo").strip().lower()
+    scenario = request.form.get("scenario", "ethereum").strip()
+    wallet = request.form.get("wallet_address", "").strip()
+
+    try:
+        if mode == "real":
+            if not wallet:
+                raise ValueError("Enter an Ethereum wallet address.")
+            results = fetch_ethereum_trace(wallet)
+
+        elif mode == "demo":
+            results = build_demo_trace(scenario)
+
+        else:
+            raise ValueError("Choose either Demo Mode or Real Ethereum Mode.")
+
+        LAST_RESULTS = results
+        return render_dashboard(results=results)
+
+    except ValueError as exc:
+        return render_dashboard(error=str(exc))
+
+    except Exception:
+        app.logger.exception("Failed to generate transaction trace")
+        return render_dashboard(
+            error="An unexpected error occurred. Check the terminal for details."
+        )
+
+
+@app.route("/get_report", methods=["GET"])
+def get_report():
+    if not LAST_RESULTS:
+        return "Run an investigation before downloading a report.", 400
+
+    results = LAST_RESULTS
+    output = io.StringIO()
+    output.write("CryptoTrace Investigation Report\n")
+    output.write("=" * 36 + "\n")
+    output.write(f"Generated: {utc_timestamp(datetime.now(timezone.utc).timestamp())}\n")
+    output.write(f"Mode: {results.get('mode', 'unknown')}\n")
+    output.write(f"Wallet: {results.get('wallet', '')}\n")
+    output.write(f"Transactions: {results.get('total_transactions', 0)}\n")
+    output.write(f"Total ETH transferred in listed transactions: {results.get('total_amount', 0)}\n")
+    output.write(f"Notice: {results.get('notice', '')}\n\n")
+
+    writer = csv.writer(output)
+    writer.writerow(["Sender", "Receiver", "Value (ETH)", "Timestamp (UTC)", "Transaction Hash"])
+    for tx in results.get("edges", []):
+        writer.writerow([
+            tx.get("sender", ""),
+            tx.get("receiver", ""),
+            tx.get("value", 0),
+            tx.get("timestamp", ""),
+            tx.get("hash", ""),
+        ])
+
+    memory_file = io.BytesIO(output.getvalue().encode("utf-8"))
+    memory_file.seek(0)
+
+    return send_file(
+        memory_file,
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name="cryptotrace_report.csv",
+    )
+
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=5000, debug=True)

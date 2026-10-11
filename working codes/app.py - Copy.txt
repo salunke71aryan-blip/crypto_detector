@@ -1,0 +1,500 @@
+
+from flask import Flask, render_template, request, send_from_directory, abort
+from pyvis.network import Network
+from pathlib import Path
+from datetime import datetime, timezone
+import hashlib
+import re
+
+# --------------------------------------------------
+# APP CONFIGURATION
+# --------------------------------------------------
+
+app = Flask(__name__)
+
+BASE_DIR = Path(__file__).resolve().parent
+TEMPLATE_DIR = BASE_DIR / "templates"
+
+TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
+
+GRAPH_FILE = TEMPLATE_DIR / "dynamic_crypto_map.html"
+REPORT_FILE = BASE_DIR / "investigation_report.md"
+
+
+# --------------------------------------------------
+# SIMULATED BLOCKCHAIN DATA
+# This is demonstration data, not live blockchain data.
+# --------------------------------------------------
+
+SCENARIOS = {
+    "ethereum": {
+        "name": "Ethereum / USDT",
+        "network": "Ethereum (simulated)",
+        "asset": "USDT",
+        "exchange": "Illustrative exchange endpoint",
+        "path": [
+            "0xA11CE000000000000000000000000000000001",
+            "0xB0B00000000000000000000000000000000002",
+            "0xC0FFEE00000000000000000000000000000003",
+            "0xD00D0000000000000000000000000000000004",
+            "0xEXCH00000000000000000000000000000000005",
+        ],
+        "amounts": [2500, 1800, 1200, 900],
+        "txids": [
+            "demo_eth_tx_001",
+            "demo_eth_tx_002",
+            "demo_eth_tx_003",
+            "demo_eth_tx_004",
+        ],
+    },
+    "bitcoin": {
+        "name": "Bitcoin",
+        "network": "Bitcoin (simulated)",
+        "asset": "BTC",
+        "exchange": "Illustrative exchange endpoint",
+        "path": [
+            "bc1qdemo00000000000000000000000000000001",
+            "bc1qtrace0000000000000000000000000000002",
+            "bc1qrisk00000000000000000000000000000003",
+            "bc1qvasp00000000000000000000000000000004",
+        ],
+        "amounts": [0.85, 0.60, 0.35],
+        "txids": [
+            "demo_btc_tx_001",
+            "demo_btc_tx_002",
+            "demo_btc_tx_003",
+        ],
+    },
+}
+
+
+# --------------------------------------------------
+# DEMONSTRATION WALLET RISK SCORING
+# --------------------------------------------------
+
+def calculate_wallet_risk(wallet: str) -> dict:
+    digest = hashlib.sha256(wallet.encode("utf-8")).hexdigest()
+    score = int(digest[:8], 16) % 101
+
+    if score >= 75:
+        level = "CRITICAL"
+    elif score >= 50:
+        level = "HIGH"
+    elif score >= 25:
+        level = "MEDIUM"
+    else:
+        level = "LOW"
+
+    return {
+        "wallet": wallet,
+        "score": score,
+        "level": level,
+        "note": "Simulated score; not a verified fraud assessment.",
+    }
+
+
+# --------------------------------------------------
+# BUILD TRANSACTION TRACE
+# --------------------------------------------------
+
+def build_trace(scenario_key: str, start_wallet: str = "") -> dict:
+    scenario = SCENARIOS[scenario_key]
+    path = list(scenario["path"])
+
+    if start_wallet:
+        path[0] = start_wallet.strip()
+
+    edges = []
+
+    for index, amount in enumerate(scenario["amounts"]):
+        edges.append({
+            "from": path[index],
+            "to": path[index + 1],
+            "amount": amount,
+            "asset": scenario["asset"],
+            "txid": scenario["txids"][index],
+        })
+
+    risk_profiles = [
+        calculate_wallet_risk(wallet)
+        for wallet in path
+    ]
+
+    return {
+        "scenario_key": scenario_key,
+        "scenario_name": scenario["name"],
+        "network": scenario["network"],
+        "asset": scenario["asset"],
+        "exchange": scenario["exchange"],
+        "path": path,
+        "edges": edges,
+        "risk_profiles": risk_profiles,
+        "target_wallet": path[-1],
+        "total_transactions": len(edges),
+        "total_wallets": len(path),
+        "total_amount": sum(scenario["amounts"]),
+        "generated_at": datetime.now(timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S UTC"
+        ),
+    }
+
+
+# --------------------------------------------------
+# GENERATE INTERACTIVE GRAPH
+# --------------------------------------------------
+
+def generate_graph_html(trace_results: dict) -> None:
+    net = Network(
+        height="550px",
+        width="100%",
+        bgcolor="#0b1220",
+        font_color="#e5edf8",
+        directed=True,
+        cdn_resources="in_line",
+        notebook=False,
+    )
+
+    net.set_options("""
+    {
+      "layout": {
+        "improvedLayout": true
+      },
+      "nodes": {
+        "font": {
+          "color": "#e5edf8",
+          "face": "Arial",
+          "size": 15,
+          "multi": true
+        },
+        "borderWidth": 2,
+        "margin": 12
+      },
+      "edges": {
+        "color": {
+          "color": "#64748b",
+          "highlight": "#60a5fa"
+        },
+        "font": {
+          "color": "#cbd5e1",
+          "size": 11,
+          "background": "#0b1220",
+          "strokeWidth": 0
+        },
+        "arrows": {
+          "to": {
+            "enabled": true,
+            "scaleFactor": 0.8
+          }
+        },
+        "smooth": {
+          "type": "continuous"
+        }
+      },
+      "physics": {
+        "enabled": true,
+        "stabilization": {
+          "enabled": true,
+          "iterations": 500,
+          "fit": true
+        },
+        "barnesHut": {
+          "gravitationalConstant": -7000,
+          "centralGravity": 0.25,
+          "springLength": 190,
+          "springConstant": 0.04,
+          "avoidOverlap": 0.6
+        }
+      },
+      "interaction": {
+        "hover": true,
+        "dragNodes": true,
+        "dragView": true,
+        "zoomView": true,
+        "navigationButtons": true,
+        "keyboard": true,
+        "hideEdgesOnDrag": false
+      }
+    }
+    """)
+
+    start_wallet = trace_results["path"][0]
+    target_wallet = trace_results["target_wallet"]
+
+    for wallet in trace_results["path"]:
+        display = (
+            wallet[:9] + "..." + wallet[-6:]
+            if len(wallet) > 20
+            else wallet
+        )
+
+        if wallet == start_wallet:
+            net.add_node(
+                wallet,
+                label=f"START\n{display}",
+                color={
+                    "background": "#123d32",
+                    "border": "#34d399",
+                },
+                size=30,
+                shape="dot",
+                title="Start of simulated trace",
+            )
+
+        elif wallet == target_wallet:
+            net.add_node(
+                wallet,
+                label=f"ENDPOINT\n{display}",
+                color={
+                    "background": "#3b2462",
+                    "border": "#c084fc",
+                },
+                size=32,
+                shape="diamond",
+                title=trace_results["exchange"],
+            )
+
+        else:
+            risk = calculate_wallet_risk(wallet)
+
+            border_color = {
+                "LOW": "#34d399",
+                "MEDIUM": "#facc15",
+                "HIGH": "#fb923c",
+                "CRITICAL": "#fb7185",
+            }[risk["level"]]
+
+            net.add_node(
+                wallet,
+                label=f"{risk['level']}\n{display}",
+                color={
+                    "background": "#172b42",
+                    "border": border_color,
+                },
+                size=24,
+                shape="dot",
+                title=(
+                    f"Demo risk score: {risk['score']}/100\n"
+                    f"Category: {risk['level']}\n"
+                    "Illustrative score only."
+                ),
+            )
+
+    for edge in trace_results["edges"]:
+        amount_text = f"{edge['amount']} {edge['asset']}"
+
+        net.add_edge(
+            edge["from"],
+            edge["to"],
+            label=amount_text,
+            title=(
+                f"Demo transaction: {edge['txid']}\n"
+                f"Amount: {amount_text}"
+            ),
+        )
+
+    # Generate the HTML file.
+    net.write_html(
+        str(GRAPH_FILE),
+        open_browser=False,
+        notebook=False,
+    )
+
+    # Fit the graph after it loads and whenever its window resizes.
+    graph_html = GRAPH_FILE.read_text(encoding="utf-8")
+
+    fit_script = """
+    <script>
+    window.addEventListener("load", function () {
+        function fitGraph() {
+            if (typeof network !== "undefined") {
+                network.redraw();
+
+                network.fit({
+                    animation: {
+                        duration: 300,
+                        easingFunction: "easeInOutQuad"
+                    }
+                });
+            }
+        }
+
+        setTimeout(fitGraph, 800);
+
+        window.addEventListener("resize", function () {
+            setTimeout(fitGraph, 250);
+        });
+    });
+    </script>
+    """
+
+    graph_html = graph_html.replace(
+        "</body>",
+        fit_script + "\n</body>",
+    )
+
+    GRAPH_FILE.write_text(graph_html, encoding="utf-8")
+
+
+# --------------------------------------------------
+# GENERATE MARKDOWN REPORT
+# --------------------------------------------------
+
+def generate_report(results: dict) -> None:
+    lines = [
+        "# Crypto Transaction Investigation Report",
+        "",
+        "> DEMONSTRATION ONLY: transactions and risk scores are simulated.",
+        "",
+        f"- Generated: {results['generated_at']}",
+        f"- Scenario: {results['scenario_name']}",
+        f"- Network: {results['network']}",
+        f"- Asset: {results['asset']}",
+        f"- Transactions: {results['total_transactions']}",
+        f"- Wallets: {results['total_wallets']}",
+        f"- Sum of displayed amounts: "
+        f"{results['total_amount']} {results['asset']}",
+        "",
+        "## Transaction route",
+        "",
+    ]
+
+    for index, edge in enumerate(results["edges"], start=1):
+        lines.extend([
+            f"### Transaction {index}",
+            f"- From: `{edge['from']}`",
+            f"- To: `{edge['to']}`",
+            f"- Amount: {edge['amount']} {edge['asset']}",
+            f"- Demo transaction ID: `{edge['txid']}`",
+            "",
+        ])
+
+    lines.extend([
+        "## Illustrative wallet risk scores",
+        "",
+        "| Wallet | Score | Category |",
+        "|---|---:|---|",
+    ])
+
+    for profile in results["risk_profiles"]:
+        lines.append(
+            f"| `{profile['wallet']}` | "
+            f"{profile['score']}/100 | {profile['level']} |"
+        )
+
+    lines.extend([
+        "",
+        "## Limitations",
+        "",
+        "- Transaction data is simulated.",
+        "- Risk scores are generated using a demo heuristic.",
+        "- Endpoint labels do not verify exchange ownership.",
+        "- No live blockchain lookup or real-world attribution occurs.",
+        "- This report is not verified legal or investigative evidence.",
+        "",
+    ])
+
+    REPORT_FILE.write_text("\n".join(lines), encoding="utf-8")
+
+
+# --------------------------------------------------
+# FLASK ROUTES
+# --------------------------------------------------
+
+@app.route("/", methods=["GET"])
+def index():
+    return render_template(
+        "dashboard.html",
+        scenarios=SCENARIOS,
+        results=None,
+        error=None,
+    )
+
+
+@app.route("/trace", methods=["POST"])
+def trace():
+    scenario_key = request.form.get("scenario", "ethereum")
+    start_wallet = request.form.get("wallet", "").strip()
+
+    if scenario_key not in SCENARIOS:
+        scenario_key = "ethereum"
+
+    if len(start_wallet) > 120:
+        return render_template(
+            "dashboard.html",
+            scenarios=SCENARIOS,
+            results=None,
+            error="The wallet field must be 120 characters or fewer.",
+        ), 400
+
+    if start_wallet and not re.fullmatch(
+        r"[A-Za-z0-9_:\-\.]+",
+        start_wallet,
+    ):
+        return render_template(
+            "dashboard.html",
+            scenarios=SCENARIOS,
+            results=None,
+            error="The wallet field contains unsupported characters.",
+        ), 400
+
+    try:
+        results = build_trace(scenario_key, start_wallet)
+        generate_graph_html(results)
+        generate_report(results)
+
+        return render_template(
+            "dashboard.html",
+            scenarios=SCENARIOS,
+            results=results,
+            error=None,
+        )
+
+    except Exception:
+        app.logger.exception("Failed to generate demonstration trace")
+
+        return render_template(
+            "dashboard.html",
+            scenarios=SCENARIOS,
+            results=None,
+            error=(
+                "The trace could not be generated. "
+                "Check the VS Code terminal for the error."
+            ),
+        ), 500
+
+
+@app.route("/map_frame", methods=["GET"])
+def map_frame():
+    if not GRAPH_FILE.exists():
+        abort(404, description="Generate a trace first.")
+
+    response = send_from_directory(
+        str(TEMPLATE_DIR),
+        GRAPH_FILE.name,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/get_report", methods=["GET"])
+def get_report():
+    if not REPORT_FILE.exists():
+        abort(404, description="Generate a trace first.")
+
+    return send_from_directory(
+        str(BASE_DIR),
+        REPORT_FILE.name,
+        as_attachment=True,
+    )
+
+
+# --------------------------------------------------
+# START SERVER
+# --------------------------------------------------
+
+if __name__ == "__main__":
+    app.run(
+        host="127.0.0.1",
+        port=5000,
+        debug=True,
+    )

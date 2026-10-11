@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tech Titans - Crypto Fraud Attribution Dashboard</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a; --bg-secondary: #1e293b;
+            --accent-blue: #38bdf8; --accent-purple: #a855f7;
+            --text-main: #f8fafc; --text-muted: #94a3b8;
+            --danger: #ef4444; --success: #22c55e;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg-primary); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+        
+        .sidebar { width: 260px; background-color: var(--bg-secondary); border-right: 1px solid #334155; padding: 20px; }
+        .sidebar h2 { color: var(--accent-blue); margin-bottom: 30px; }
+        .nav-links { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .nav-item { padding: 12px 15px; border-radius: 8px; color: var(--text-muted); cursor: pointer; transition: background 0.2s; }
+        .nav-item.active, .nav-item:hover { background-color: #334155; color: var(--text-main); }
+        
+        .main-content { flex: 1; display: flex; flex-direction: column; padding: 25px; overflow-y: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .search-container { display: flex; gap: 10px; width: 60%; }
+        .search-bar { flex: 1; background-color: var(--bg-secondary); border: 1px solid #334155; padding: 12px 20px; border-radius: 8px; color: var(--text-main); outline: none; font-family: monospace; font-size: 0.9rem; }
+        .btn-trace { background-color: var(--accent-blue); color: #000; border: none; padding: 0 25px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        
+        .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
+        .card { background-color: var(--bg-secondary); border: 1px solid #334155; border-radius: 12px; padding: 20px; }
+        .card-title { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+        .card-value { font-size: 1.4rem; font-weight: bold; }
+        
+        .visualization-panel { background-color: var(--bg-secondary); border: 1px solid #334155; border-radius: 12px; display: flex; flex-direction: column; height: 520px; margin-top: 10px; }
+        .panel-header { padding: 15px 20px; border-bottom: 1px solid #334155; font-weight: bold; background: #131d31; }
+        .map-iframe { width: 100%; height: 460px; border: none; background-color: #ffffff; }
+        
+        .dashboard-view { display: flex; flex-direction: column; flex: 1; }
+        .hidden-view { display: none !important; }
+        .report-box { background-color: var(--bg-secondary); border: 1px solid #334155; border-radius: 0 0 12px 12px; padding: 30px; white-space: pre-line; font-family: 'Courier New', Courier, monospace; color: #a7f3d0; line-height: 1.6; font-size: 1.05rem; overflow-y: auto; height: 450px; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>🛡️ Tech Titans</h2>
+        <ul class="nav-links">
+            <li class="nav-item active" id="btnTracker" onclick="switchView('tracker')">🔎 Real-Time Tracker</li>
+            <li class="nav-item" id="btnMetrics" onclick="switchView('metrics')">📊 Intelligence Metrics</li>
+            <li class="nav-item" id="btnReports" onclick="switchView('reports')">📋 Case Evidence Reports</li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="search-container">
+                <input type="text" id="walletInput" class="search-bar" value="{{ current_wallet }}">
+                <button class="btn-trace" onclick="triggerLiveTrace()">RUN TRACE</button>
+            </div>
+            <div><span>Terminal Mode: <strong>I4C Forensic Node</strong></span></div>
+        </div>
+
+        <!-- 1. MAIN TRACKER VIEW PANEL -->
+        <div id="trackerOverviewView" class="dashboard-view">
+            <div class="metrics-grid">
+                <div class="card"><div class="card-title">Attribution Endpoint</div><div class="card-value" id="statVasp" style="color:var(--accent-purple)">{{ exchange }}</div></div>
+                <div class="card"><div class="card-title">Network Risk Profile</div><div class="card-value" id="statRisk" style="color:var(--danger)">{{ risk }}</div></div>
+                <div class="card"><div class="card-title">Total Hops Traversed</div><div class="card-value" id="statHops">{{ hops }} Hops</div></div>
+                <div class="card"><div class="card-title">Asset Freeze Status</div><div class="card-value" id="statFreeze" style="color:var(--success)">{{ freeze }}</div></div>
+            </div>
+
+            <div class="visualization-panel">
+                <div class="panel-header">🌐 Live Automated Multi-Hop Blockchain Network Topology Map</div>
+                <iframe id="mapFrame" class="map-iframe" src="/map_frame"></iframe>
+            </div>
+        </div>
+
+        <!-- 2. SYSTEM INTELLIGENCE METRICS VIEW -->
+        <div id="metricsAnalyticsView" class="dashboard-view hidden-view">
+            <div class="card" style="margin-bottom: 20px;">
+                <h3 style="margin-bottom:15px;color:var(--accent-blue)">🛡️ Global System Core Status Dashboard</h3>
+                <p style="color:var(--text-muted)">• System Processing Latency: <strong>14ms</strong><br>• Node Crawling Indices: <strong>Active OK</strong><br>• Connected VASP Terminals: <strong>250+ Global Exchanges</strong></p>
+            </div>
+        </div>
+
+        <!-- 3. EVIDENCE REPORT FILE RENDER VIEW -->
+        <div id="caseEvidenceReportsView" class="dashboard-view hidden-view">
+            <div class="panel-header" style="border: 1px solid #334155; border-bottom:none; border-top-left-radius:12px; border-top-right-radius:12px; background:var(--bg-secondary)">📄 Live Forensic Evidence Logs Output</div>
+            <div id="reportDisplayContainer" class="report-box">Loading generated markdown report data from host filesystem...</div>
+        </div>
+    </div>
+
+    <script>
+        function switchView(targetTab) {
+            document.getElementById("btnTracker").classList.remove("active");
+            document.getElementById("btnMetrics").classList.remove("active");
+            document.getElementById("btnReports").classList.remove("active");
+            
+            document.getElementById("trackerOverviewView").classList.add("hidden-view");
+            document.getElementById("metricsAnalyticsView").classList.add("hidden-view");
+            document.getElementById("caseEvidenceReportsView").classList.add("hidden-view");
+            
+            if (targetTab === 'tracker') {
+                document.getElementById("btnTracker").classList.add("active");
+                document.getElementById("trackerOverviewView").classList.remove("hidden-view");
+            } else if (targetTab === 'metrics') {
+                document.getElementById("btnMetrics").classList.add("active");
+                document.getElementById("metricsAnalyticsView").classList.remove("hidden-view");
+            } else if (targetTab === 'reports') {
+                document.getElementById("btnReports").classList.add("active");
+                document.getElementById("caseEvidenceReportsView").classList.remove("hidden-view");
+                fetchForensicReportFile(); 
+            }
+        }
+
+        function fetchForensicReportFile() {
+            fetch('/get_report')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById("reportDisplayContainer").innerText = data.content;
+                } else {
+                    document.getElementById("reportDisplayContainer").innerText = "Error: " + data.error;
+                }
+            })
+            .catch(err => {
+                document.getElementById("reportDisplayContainer").innerText = "Failed to load report from server backend.";
+            });
+        }
+
+        function triggerLiveTrace() {
+            const walletValue = document.getElementById("walletInput").value.trim();
+            
+            fetch('/trace', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wallet: walletValue })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById("statVasp").innerText = data.exchange;
+                    document.getElementById("statRisk").innerText = data.risk;
+                    document.getElementById("statHops").innerText = data.hops + " Hops";
+                    document.getElementById("statFreeze").innerText = data.freeze;
+                    
+                    document.getElementById("mapFrame").src = "/map_frame?t=" + new Date().getTime();
+                } else {
+                    alert("Verification Error: " + data.error);
+                }
+            })
+            .catch(err => console.error("Communication broke:", err));
+        }
+    </script>
+</body>
+</html>

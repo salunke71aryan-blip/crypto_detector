@@ -1,0 +1,988 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CryptoTrace | Investigation Dashboard</title>
+
+    <style>
+        :root {
+            --bg: #080d18;
+            --panel: #111a2b;
+            --panel-light: #172338;
+            --border: #26354d;
+            --text: #e5edf8;
+            --muted: #95a6bd;
+            --blue: #60a5fa;
+            --green: #34d399;
+            --purple: #c084fc;
+            --red: #fb7185;
+            --yellow: #facc15;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            padding: 18px 5%;
+            border-bottom: 1px solid var(--border);
+            background: #0b1220;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 19px;
+            font-weight: 800;
+        }
+
+        .brand-icon {
+            display: grid;
+            place-items: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 11px;
+            background: var(--blue);
+            color: #07111e;
+            font-size: 23px;
+        }
+
+        .brand small {
+            display: block;
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        .status {
+            padding: 8px 12px;
+            border: 1px solid #315b51;
+            border-radius: 30px;
+            color: var(--green);
+            font-size: 12px;
+        }
+
+        .container {
+            width: 92%;
+            max-width: 1400px;
+            margin: auto;
+        }
+
+        .hero {
+            padding: 38px 0 25px;
+        }
+
+        .eyebrow {
+            color: var(--blue);
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 12px 0;
+            font-size: clamp(28px, 4vw, 42px);
+            letter-spacing: -1px;
+        }
+
+        .hero p {
+            max-width: 750px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .warning {
+            margin-top: 20px;
+            padding: 13px 16px;
+            border: 1px solid #765c2b;
+            border-radius: 9px;
+            background: #2a2112;
+            color: #f6d58a;
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+        .section {
+            margin-bottom: 24px;
+        }
+
+        .panel {
+            min-width: 0;
+            padding: 22px;
+            border: 1px solid var(--border);
+            border-radius: 15px;
+            background: var(--panel);
+        }
+
+        .heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .heading h2 {
+            margin: 0;
+            font-size: 17px;
+        }
+
+        .heading p {
+            margin: 7px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .tag {
+            padding: 6px 9px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr auto;
+            align-items: end;
+            gap: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 9px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        input,
+        select {
+            width: 100%;
+            min-width: 0;
+            padding: 13px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            outline: none;
+            background: #0b1322;
+            color: var(--text);
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--blue);
+        }
+
+        .hint {
+            display: block;
+            margin-top: 7px;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            padding: 12px 17px;
+            border: 0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--blue);
+            color: #07111e;
+        }
+
+        .btn-secondary {
+            border: 1px solid var(--border);
+            background: var(--panel-light);
+            color: var(--text);
+        }
+
+        .error {
+            margin-top: 15px;
+            padding: 13px;
+            border: 1px solid #743c4a;
+            border-radius: 8px;
+            background: #301821;
+            color: #fda4af;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 15px;
+        }
+
+        .stat {
+            min-width: 0;
+            padding: 19px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--panel);
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .stat-value {
+            overflow-wrap: anywhere;
+            margin-top: 12px;
+            font-size: clamp(20px, 2.5vw, 29px);
+            font-weight: 800;
+        }
+
+        .stat-note {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .blue { color: var(--blue); }
+        .green { color: var(--green); }
+        .purple { color: var(--purple); }
+        .yellow { color: var(--yellow); }
+
+        /* GRAPH PANEL */
+
+        .graph-panel {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .graph-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            padding: 22px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .graph-header h2 {
+            margin: 0;
+            font-size: 17px;
+        }
+
+        .graph-header p {
+            margin: 7px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 13px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .legend-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+        }
+
+        /*
+         * The iframe and its container both have explicit dimensions.
+         * This avoids percentage-height collapsing.
+         */
+
+        .map-wrap {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            min-height: 600px;
+            overflow: hidden;
+            background: #0b1220;
+        }
+
+        .map-frame {
+            display: block;
+            width: 100%;
+            height: 600px;
+            min-height: 600px;
+            border: 0;
+            background: #0b1220;
+        }
+
+        .graph-footer {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 14px 22px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th,
+        td {
+            padding: 14px 11px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        th {
+            color: var(--muted);
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        td code,
+        .route-item code,
+        .risk-card code {
+            overflow-wrap: anywhere;
+            color: #b6d6ff;
+            font-family: Consolas, monospace;
+            font-size: 11px;
+        }
+
+        .columns {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 20px;
+        }
+
+        .route-item {
+            position: relative;
+            padding: 0 0 22px 26px;
+            border-left: 1px solid #34445e;
+        }
+
+        .route-item:last-child {
+            padding-bottom: 0;
+            border-left-color: transparent;
+        }
+
+        .route-marker {
+            position: absolute;
+            top: 2px;
+            left: -6px;
+            width: 11px;
+            height: 11px;
+            border: 2px solid var(--blue);
+            border-radius: 50%;
+            background: var(--panel);
+        }
+
+        .route-item strong {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 13px;
+        }
+
+        .route-item code {
+            display: block;
+            color: var(--muted);
+            line-height: 1.7;
+        }
+
+        .route-amount {
+            display: inline-block;
+            margin-top: 7px;
+            color: var(--green);
+            font-size: 12px;
+        }
+
+        .risk-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .risk-card {
+            min-width: 0;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #0c1423;
+        }
+
+        .risk-card-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 5px 7px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .risk-low {
+            color: var(--green);
+            background: #102a22;
+        }
+
+        .risk-medium {
+            color: var(--yellow);
+            background: #302810;
+        }
+
+        .risk-high {
+            color: #fdba74;
+            background: #351f14;
+        }
+
+        .risk-critical {
+            color: var(--red);
+            background: #341721;
+        }
+
+        .score-bar {
+            height: 6px;
+            margin-top: 12px;
+            overflow: hidden;
+            border-radius: 8px;
+            background: #263247;
+        }
+
+        .score-fill {
+            height: 100%;
+            background: var(--blue);
+        }
+
+        .score-note {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .empty-state {
+            padding: 35px 15px;
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+            color: var(--muted);
+            line-height: 1.8;
+            text-align: center;
+        }
+
+        .footer {
+            margin-top: 35px;
+            padding: 25px 0;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.8;
+            text-align: center;
+        }
+
+        @media (max-width: 900px) {
+            .form-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .form-grid .btn {
+                grid-column: 1 / -1;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .columns {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .topbar {
+                padding: 14px 4%;
+            }
+
+            .brand {
+                font-size: 15px;
+            }
+
+            .brand-icon {
+                width: 35px;
+                height: 35px;
+            }
+
+            .status {
+                padding: 7px 9px;
+                font-size: 10px;
+            }
+
+            .container {
+                width: 92%;
+            }
+
+            .hero {
+                padding-top: 28px;
+            }
+
+            .panel {
+                padding: 15px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-grid .btn {
+                grid-column: auto;
+                width: 100%;
+            }
+
+            .stats {
+                gap: 10px;
+            }
+
+            .stat {
+                padding: 14px;
+            }
+
+            .stat-value {
+                font-size: 20px;
+            }
+
+            .graph-header {
+                padding: 16px;
+            }
+
+            .map-wrap {
+                height: 550px;
+                min-height: 550px;
+            }
+
+            .map-frame {
+                height: 550px;
+                min-height: 550px;
+            }
+
+            .graph-footer {
+                padding: 12px 16px;
+            }
+
+            .risk-grid {
+                grid-template-columns: 1fr;
+            }
+
+            th,
+            td {
+                padding: 11px 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header class="topbar">
+    <div class="brand">
+        <div class="brand-icon">⌘</div>
+        <div>
+            CryptoTrace
+            <small>BLOCKCHAIN INVESTIGATION LAB</small>
+        </div>
+    </div>
+
+    <div class="status">● Demo environment</div>
+</header>
+
+<main class="container">
+
+    <section class="hero">
+        <div class="eyebrow">Blockchain intelligence prototype</div>
+
+        <h1>Crypto Fraud Attribution Dashboard</h1>
+
+        <p>
+            Explore simulated cryptocurrency transfers, inspect wallet
+            connections, review illustrative risk scores, and generate
+            a transaction investigation report.
+        </p>
+
+        <div class="warning">
+            <strong>Demonstration mode:</strong>
+            Transactions, risk scores, and endpoint labels are simulated.
+            This prototype does not query a live blockchain or verify
+            wallet ownership, fraud, or exchange involvement.
+        </div>
+    </section>
+
+
+    <section class="section panel">
+        <div class="heading">
+            <div>
+                <h2>Start an investigation</h2>
+                <p>Choose a demonstration scenario to build the transaction graph.</p>
+            </div>
+
+            <span class="tag">01 / TRACE</span>
+        </div>
+
+        <form action="/trace" method="POST" class="form-grid">
+            <div>
+                <label for="scenario">Blockchain scenario</label>
+
+                <select id="scenario" name="scenario" required>
+                    {% for key, scenario in scenarios.items() %}
+                    <option
+                        value="{{ key }}"
+                        {% if results and results.scenario_key == key %}
+                            selected
+                        {% elif not results and key == 'ethereum' %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ scenario.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <span class="hint">
+                    Select Ethereum / USDT or Bitcoin demo data.
+                </span>
+            </div>
+
+            <div>
+                <label for="wallet">Starting wallet (optional)</label>
+
+                <input
+                    type="text"
+                    id="wallet"
+                    name="wallet"
+                    maxlength="120"
+                    placeholder="Leave blank to use the sample wallet"
+                    autocomplete="off"
+                >
+
+                <span class="hint">
+                    This replaces the start label only; it does not look
+                    up an actual wallet.
+                </span>
+            </div>
+
+            <button class="btn btn-primary" type="submit">
+                ↗ Trace transactions
+            </button>
+        </form>
+
+        {% if error %}
+        <div class="error" role="alert">{{ error }}</div>
+        {% endif %}
+    </section>
+
+
+    {% if results %}
+
+    <section class="section stats">
+
+        <div class="stat">
+            <div class="stat-label">Selected asset</div>
+            <div class="stat-value blue">{{ results.asset }}</div>
+            <div class="stat-note">{{ results.network }}</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">Wallets in route</div>
+            <div class="stat-value green">{{ results.total_wallets }}</div>
+            <div class="stat-note">Simulated wallet nodes</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">Transactions</div>
+            <div class="stat-value purple">{{ results.total_transactions }}</div>
+            <div class="stat-note">Simulated transfers</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">Sum of displayed amounts</div>
+            <div class="stat-value yellow">{{ results.total_amount }}</div>
+            <div class="stat-note">{{ results.asset }} · demo values</div>
+        </div>
+
+    </section>
+
+
+    <section class="section panel graph-panel" id="graph">
+        <div class="graph-header">
+            <div>
+                <h2>Transaction relationship map</h2>
+                <p>
+                    Drag nodes, zoom in or out, and hover over a node
+                    or connection to inspect the demo details.
+                </p>
+            </div>
+
+            <div class="legend">
+                <span class="legend-item">
+                    <span class="legend-dot" style="background:#34d399"></span>
+                    Start
+                </span>
+
+                <span class="legend-item">
+                    <span class="legend-dot" style="background:#60a5fa"></span>
+                    Intermediate
+                </span>
+
+                <span class="legend-item">
+                    <span class="legend-dot" style="background:#c084fc"></span>
+                    Endpoint
+                </span>
+            </div>
+        </div>
+
+        <div class="map-wrap">
+            <iframe
+                class="map-frame"
+                src="/map_frame"
+                title="Interactive simulated transaction graph"
+                loading="eager"
+                allowfullscreen>
+            </iframe>
+        </div>
+
+        <div class="graph-footer">
+            <span>Interactive visualization · PyVis</span>
+            <span>{{ results.generated_at }}</span>
+        </div>
+    </section>
+
+
+    <section class="section panel">
+        <div class="heading">
+            <div>
+                <h2>Transaction details</h2>
+                <p>Transfers used to build this demonstration route.</p>
+            </div>
+
+            <span class="tag">02 / TRANSACTIONS</span>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>From wallet</th>
+                        <th>To wallet</th>
+                        <th>Amount</th>
+                        <th>Demo transaction ID</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for edge in results.edges %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td><code>{{ edge.from }}</code></td>
+                        <td><code>{{ edge.to }}</code></td>
+                        <td>{{ edge.amount }} {{ edge.asset }}</td>
+                        <td><code>{{ edge.txid }}</code></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+
+    <section class="section columns">
+
+        <div class="panel">
+            <div class="heading">
+                <div>
+                    <h2>Wallet trace</h2>
+                    <p>Follow the simulated transaction route.</p>
+                </div>
+
+                <span class="tag">03 / PATH</span>
+            </div>
+
+            {% for wallet in results.path %}
+            <div class="route-item">
+                <span class="route-marker"></span>
+
+                {% if loop.first %}
+                <strong>Starting wallet</strong>
+                {% elif loop.last %}
+                <strong>Endpoint · {{ results.exchange }}</strong>
+                {% else %}
+                <strong>Intermediate wallet {{ loop.index - 1 }}</strong>
+                {% endif %}
+
+                <code>{{ wallet }}</code>
+
+                {% if not loop.last %}
+                <span class="route-amount">
+                    Next transfer:
+                    {{ results.edges[loop.index0].amount }}
+                    {{ results.asset }}
+                </span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+
+        <div class="panel">
+            <div class="heading">
+                <div>
+                    <h2>Wallet risk indicators</h2>
+                    <p>Scores from a demonstration heuristic.</p>
+                </div>
+
+                <span class="tag">04 / RISK</span>
+            </div>
+
+            <div class="risk-grid">
+                {% for profile in results.risk_profiles %}
+                <div class="risk-card">
+                    <div class="risk-card-top">
+                        <span class="risk-badge risk-{{ profile.level|lower }}">
+                            {{ profile.level }}
+                        </span>
+
+                        <strong>{{ profile.score }}/100</strong>
+                    </div>
+
+                    <code>{{ profile.wallet }}</code>
+
+                    <div class="score-bar">
+                        <div
+                            class="score-fill"
+                            style="width: {{ profile.score }}%">
+                        </div>
+                    </div>
+
+                    <div class="score-note">
+                        Illustrative score only
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <p style="color:var(--muted);font-size:11px;line-height:1.8;margin-top:16px">
+                A high score is not proof of criminal activity. These
+                values are generated by a demo heuristic and do not
+                represent verified wallet intelligence.
+            </p>
+        </div>
+
+    </section>
+
+
+    <section class="section panel" id="report">
+        <div class="heading">
+            <div>
+                <h2>Investigation report</h2>
+                <p>
+                    Download the route, transactions, risk scores,
+                    and methodology limitations as a Markdown report.
+                </p>
+            </div>
+
+            <span class="tag">05 / REPORT</span>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap">
+            <div>
+                <strong>investigation_report.md</strong>
+
+                <div style="margin-top:7px;color:var(--muted);font-size:12px">
+                    Generated from the current demonstration trace
+                </div>
+            </div>
+
+            <a class="btn btn-primary" href="/get_report">
+                ↓ Download report
+            </a>
+        </div>
+    </section>
+
+
+    {% else %}
+
+    <section class="section panel">
+        <div class="empty-state">
+            <div style="font-size:28px;color:var(--blue);margin-bottom:10px">
+                ⌕
+            </div>
+
+            <strong>No investigation generated yet</strong>
+
+            <div>
+                Select a scenario and click
+                <strong>Trace transactions</strong> to populate the dashboard.
+            </div>
+        </div>
+    </section>
+
+    {% endif %}
+
+
+    <footer class="footer">
+        <strong>CryptoTrace · Blockchain Investigation Lab</strong>
+        <br>
+        Academic demonstration prototype. No live blockchain lookup is
+        performed. Transaction records, risk scores, and endpoint labels
+        are illustrative and must not be treated as verified evidence.
+    </footer>
+
+</main>
+
+</body>
+</html>

@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoTrace | Blockchain Attribution & Wallet Risk Profiling</title>
+
+    <style>
+        :root {
+            --bg: #0b0f19;
+            --panel: #131b2e;
+            --panel-card: #182238;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --border: #23314d;
+            --primary: #4f46e5;
+            --primary-hover: #6366f1;
+            --accent-blue: #38bdf8;
+            --accent-purple: #a855f7;
+            --green: #10b981;
+            --green-bg: rgba(16, 185, 129, 0.12);
+            --amber: #f59e0b;
+            --amber-bg: rgba(245, 158, 11, 0.12);
+            --orange: #f97316;
+            --orange-bg: rgba(249, 115, 22, 0.12);
+            --red: #ef4444;
+            --red-bg: rgba(239, 68, 68, 0.12);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.5;
+        }
+
+        /* HEADER */
+        header {
+            background: linear-gradient(180deg, #0f172a 0%, #111c33 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 22px 4%;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+        }
+
+        .header-container {
+            max-width: 1450px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .brand-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-title h1 {
+            margin: 0;
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-subtitle {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .header-badges {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .sys-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent-blue);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+        }
+
+        /* MAIN WRAPPER */
+        main {
+            width: 92%;
+            max-width: 1450px;
+            margin: 24px auto 40px;
+        }
+
+        /* PANELS */
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        h2 {
+            font-size: 19px;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: #f8fafc;
+        }
+
+        .section-subtitle {
+            margin: 6px 0 16px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        /* FORM */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+            align-items: end;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            color: var(--muted);
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #0f1626;
+            color: #f8fafc;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+        }
+
+        .form-actions {
+            margin-top: 18px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        button, .button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        button:hover, .button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .button-secondary {
+            background: #1e293b;
+            color: #e2e8f0;
+            border: 1px solid var(--border);
+        }
+
+        .button-secondary:hover {
+            background: #27354f;
+            color: white;
+        }
+
+        .preset-pills {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            background: #142036;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .preset-btn:hover {
+            background: #1d2e4d;
+            color: #f8fafc;
+            border-color: var(--accent-blue);
+        }
+
+        /* ============================================================ */
+        /* GOOGLE-STYLE TABS NAVIGATION BAR */
+        /* ============================================================ */
+        .tabs-nav-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 20px 0 24px;
+            border-bottom: 2px solid var(--border);
+            overflow-x: auto;
+            scrollbar-width: none;
+            background: #0f1628;
+            border-radius: 12px 12px 0 0;
+            padding: 6px 10px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+        }
+
+        .tabs-nav-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 18px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            color: #f8fafc;
+            background: rgba(255, 255, 255, 0.04);
+            transform: none;
+        }
+
+        .tab-btn.active {
+            color: #38bdf8;
+            border-bottom-color: #38bdf8;
+            background: rgba(56, 189, 248, 0.09);
+            font-weight: 700;
+        }
+
+        .tab-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            background: #1e293b;
+            color: var(--muted);
+        }
+
+        .tab-btn.active .tab-pill {
+            background: rgba(56, 189, 248, 0.22);
+            color: #7dd3fc;
+        }
+
+        /* TAB PANES (CONTENT) */
+        .tab-pane {
+            display: none;
+            animation: fadeIn 0.25s ease-in-out;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* METRICS TOP BAR */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+        }
+
+        .metric-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--border);
+        }
+
+        .metric-card.card-risk::before { background: var(--red); }
+        .metric-card.card-vasp::before { background: var(--amber); }
+        .metric-card.card-freeze::before { background: var(--green); }
+        .metric-card.card-volume::before { background: var(--accent-blue); }
+
+        .metric-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--muted);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .metric-value {
+            font-size: 23px;
+            font-weight: 800;
+            margin-bottom: 4px;
+            overflow-wrap: anywhere;
+        }
+
+        .metric-sub {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.4;
+        }
+
+        /* BADGES */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .badge-critical {
+            background: var(--red-bg);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .badge-high {
+            background: var(--orange-bg);
+            color: #fdba74;
+            border: 1px solid rgba(249, 115, 22, 0.4);
+        }
+
+        .badge-medium {
+            background: var(--amber-bg);
+            color: #fde047;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+        }
+
+        .badge-low {
+            background: var(--green-bg);
+            color: #86efac;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .badge-info {
+            background: rgba(56, 189, 248, 0.12);
+            color: #7dd3fc;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .pulse-dot.dot-critical { background: var(--red); box-shadow: 0 0 8px var(--red); }
+        .pulse-dot.dot-high { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
+        .pulse-dot.dot-medium { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+        .pulse-dot.dot-low { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+        /* HERO CARD */
+        .risk-hero-box {
+            background: linear-gradient(145deg, #162035 0%, #111a2c 100%);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 22px;
+        }
+
+        .risk-hero-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .risk-address-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .wallet-code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            background: #090e18;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #23314d;
+            color: #38bdf8;
+            font-size: 13px;
+        }
+
+        .copy-btn {
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .copy-btn:hover { background: #334155; color: white; transform: none; }
+
+        /* RISK METER GAUGE */
+        .gauge-container {
+            margin: 20px 0;
+        }
+
+        .gauge-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .gauge-bar-track {
+            height: 14px;
+            background: #0a101d;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid #212c44;
+        }
+
+        .gauge-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #10b981 0%, #f59e0b 45%, #f97316 70%, #ef4444 100%);
+            transition: width 1s ease-in-out;
+        }
+
+        .verdict-box {
+            padding: 16px;
+            border-radius: 10px;
+            margin-top: 18px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .verdict-critical {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fecaca;
+        }
+
+        .verdict-high {
+            background: rgba(249, 115, 22, 0.1);
+            border: 1px solid rgba(249, 115, 22, 0.3);
+            color: #fed7aa;
+        }
+
+        .verdict-medium {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fef08a;
+        }
+
+        .verdict-low {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #bbf7d0;
+        }
+
+        /* HEURISTIC FACTORS GRID */
+        .factors-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 20px;
+        }
+
+        .factor-card {
+            background: #0f1728;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.15s, border-color 0.15s;
+        }
+
+        .factor-card:hover {
+            transform: translateY(-2px);
+            border-color: #3b82f6;
+        }
+
+        .factor-card.factor-flagged {
+            border-left: 4px solid var(--red);
+            background: linear-gradient(180deg, #141d30 0%, #0e1626 100%);
+        }
+
+        .factor-card.factor-cleared {
+            border-left: 4px solid #334155;
+            opacity: 0.82;
+        }
+
+        .factor-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .factor-name {
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            color: #f8fafc;
+        }
+
+        .factor-detail {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        /* TABLES */
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: #0f1628;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        th {
+            background: #141e33;
+            color: var(--muted);
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #1a253c;
+            color: #e2e8f0;
+            vertical-align: middle;
+        }
+
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+        .mini-meter {
+            width: 60px;
+            height: 6px;
+            background: #1e293b;
+            border-radius: 4px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        .mini-meter-fill {
+            height: 100%;
+            border-radius: 4px;
+        }
+
+        /* GRAPH FRAME */
+        .graph-frame {
+            width: 100%;
+            height: 620px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #090e17;
+            display: block;
+        }
+
+        .graph-legend {
+            display: flex;
+            gap: 16px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            color: var(--muted);
+            align-items: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* ALERTS */
+        .alert-box {
+            padding: 16px 20px;
+            border-radius: 10px;
+            margin-bottom: 22px;
+            font-size: 13px;
+            line-height: 1.6;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #fca5a5;
+        }
+
+        .alert-notice {
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            color: #bae6fd;
+        }
+
+        .alert-warning {
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            color: #fde68a;
+        }
+
+        /* CASE REPORT CARD */
+        .report-preview-box {
+            background: #090e18;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 22px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 12px;
+            color: #a7f3d0;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            max-height: 480px;
+            overflow-y: auto;
+        }
+
+        /* FOOTER */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 30px 4%;
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+            background: #090e17;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1024px) {
+            .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .factors-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .form-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 680px) {
+            .metrics-grid { grid-template-columns: 1fr; }
+            .factors-grid { grid-template-columns: 1fr; }
+            main { width: 95%; }
+            .graph-frame { height: 420px; }
+            .tabs-nav-bar { padding: 4px 6px 0; }
+            .tab-btn { padding: 10px 12px; font-size: 12px; }
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<header>
+    <div class="header-container">
+        <div>
+            <div class="brand-title">
+                <span style="font-size: 26px;">🛡️</span>
+                <h1>CryptoTrace Intelligence Platform</h1>
+            </div>
+            <p class="brand-subtitle">
+                Automated Multi-Hop Blockchain Attribution, VASP Endpoint Tracing &amp; Behavioral Wallet Risk Profiling
+            </p>
+        </div>
+        <div class="header-badges">
+            <span class="sys-badge">SIH PROBLEM STATEMENT ID: 26183</span>
+            <span class="sys-badge">I4C FORENSIC STANDARD PROTOCOL</span>
+            <span class="sys-badge" style="color:#4ade80; border-color:rgba(74,222,128,0.3);">NODE STATUS: ACTIVE</span>
+        </div>
+    </div>
+</header>
+
+<main>
+
+    <!-- INVESTIGATION INPUT PANEL -->
+    <section class="panel">
+        <div class="panel-header">
+            <h2>🔎 Blockchain Investigation Setup</h2>
+            <div class="preset-pills">
+                <button type="button" class="preset-btn" onclick="applyDemoPreset('ethereum')">⚡ Load General Demo</button>
+                <button type="button" class="preset-btn" onclick="applyDemoPreset('suspicious')">🚨 Load Suspicious Heist Demo</button>
+            </div>
+        </div>
+
+        {% if error %}
+        <div class="alert-box alert-error">
+            <strong>Investigation Error:</strong> {{ error }}
+        </div>
+        {% endif %}
+
+        <form action="{{ url_for('trace') }}" method="POST" id="traceForm">
+            <div class="form-grid">
+                <div>
+                    <label for="mode">Investigation Mode</label>
+                    <select id="mode" name="mode" required>
+                        <option value="demo" {% if results and results.mode_key == 'demo' %}selected{% endif %}>
+                            Demo Mode (Simulated Forensics)
+                        </option>
+                        <option value="real" {% if results and results.mode_key == 'real' %}selected{% endif %}>
+                            Real Ethereum Mode (Etherscan V2 API)
+                        </option>
+                    </select>
+                </div>
+
+                <div id="scenario-container">
+                    <label for="scenario">Pre-Configured Scenario</label>
+                    <select id="scenario" name="scenario">
+                        {% for key, scenario in scenarios.items() %}
+                        <option value="{{ key }}"
+                            {% if request.form.get('scenario', results.scenario_key if results else 'ethereum') == key %}selected{% endif %}>
+                            {{ scenario.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="wallet_address">Investigated Wallet Address</label>
+                    <input
+                        type="text"
+                        id="wallet_address"
+                        name="wallet_address"
+                        placeholder="0x..."
+                        value="{{ request.form.get('wallet_address', results.target_address if results else '') }}"
+                        autocomplete="off"
+                    >
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit">
+                    <span>⚡ Run Forensic Analysis &amp; Profile Risk</span>
+                </button>
+                {% if results %}
+                <a class="button button-secondary" href="{{ url_for('get_report') }}">
+                    <span>📥 Download Investigation Report (CSV)</span>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </section>
+
+    {% if results %}
+
+    <!-- ============================================================ -->
+    <!-- GOOGLE-STYLE TABS NAVIGATION BAR -->
+    <!-- ============================================================ -->
+    <nav class="tabs-nav-bar" id="investigationTabsNav" aria-label="Investigation Views">
+        <button type="button" class="tab-btn active" id="tabBtn-all" onclick="switchInvestigationTab('all')">
+            <span>🔍 All Overview</span>
+        </button>
+
+        <button type="button" class="tab-btn" id="tabBtn-risk" onclick="switchInvestigationTab('risk')">
+            <span>🛡️ Wallet Risk Profile</span>
+            <span class="tab-pill" style="color: {{ results.target_risk_profile.risk_color }};">
+                {{ results.target_risk_profile.risk_score }}/100
+            </span>
+        </button>
+
+        <button type="button" class="tab-btn" id="tabBtn-graph" onclick="switchInvestigationTab('graph')">
+            <span>🌐 Network Graph</span>
+            <span class="tab-pill">{{ results.wallets|length }} Nodes</span>
+        </button>
+
+        <button type="button" class="tab-btn" id="tabBtn-vasp" onclick="switchInvestigationTab('vasp')">
+            <span>🏦 VASP Attribution</span>
+            <span class="tab-pill">{{ results.attributions|length }}</span>
+        </button>
+
+        <button type="button" class="tab-btn" id="tabBtn-ledger" onclick="switchInvestigationTab('ledger')">
+            <span>📜 Transaction Ledger</span>
+            <span class="tab-pill">{{ results.transactions|length }}</span>
+        </button>
+
+        <button type="button" class="tab-btn" id="tabBtn-report" onclick="switchInvestigationTab('report')">
+            <span>📋 Evidence Case Report</span>
+            <span class="tab-pill">SOP / CSV</span>
+        </button>
+    </nav>
+
+
+    <!-- ============================================================ -->
+    <!-- TAB 1: ALL OVERVIEW (CONSOLIDATED DASHBOARD) -->
+    <!-- ============================================================ -->
+    <div id="tabContent-all" class="tab-pane active">
+
+        <!-- Executive Metrics Bar -->
+        <div class="metrics-grid">
+            <div class="metric-card card-risk">
+                <div class="metric-label">
+                    <span>Target Wallet Risk</span>
+                    <span class="badge {{ results.target_risk_profile.badge_class }}">
+                        <span class="pulse-dot dot-{{ results.target_risk_profile.risk_level|lower }}"></span>
+                        {{ results.target_risk_profile.risk_label }}
+                    </span>
+                </div>
+                <div class="metric-value" style="color: {{ results.target_risk_profile.risk_color }};">
+                    {{ results.target_risk_profile.risk_score }} <span style="font-size: 16px; color: var(--muted);">/ 100</span>
+                </div>
+                <div class="metric-sub">{{ results.target_risk_profile.summary_verdict }}</div>
+            </div>
+
+            <div class="metric-card card-vasp">
+                <div class="metric-label">
+                    <span>Destination VASP Endpoint</span>
+                    {% if results.top_vasp %}
+                    <span class="badge badge-medium">MATCHED</span>
+                    {% else %}
+                    <span class="badge badge-info">UNATTRIBUTED</span>
+                    {% endif %}
+                </div>
+                <div class="metric-value" style="color: #fcd34d;">
+                    {% if results.top_vasp %}
+                        {{ results.top_vasp.name }}
+                    {% else %}
+                        No VASP Matched
+                    {% endif %}
+                </div>
+                <div class="metric-sub">
+                    {% if results.top_vasp %}
+                        {{ results.top_vasp.category }} • {{ results.top_vasp.status }}
+                    {% else %}
+                        No known centralized exchange gateway identified in path.
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="metric-card card-freeze">
+                <div class="metric-label">
+                    <span>Asset Freeze Advisory</span>
+                    <span class="badge badge-info">LEGAL SOP</span>
+                </div>
+                <div class="metric-value" style="font-size: 19px; color: {% if results.target_risk_profile.risk_score >= 60 %}#f87171{% else %}#4ade80{% endif %};">
+                    {{ results.freeze_status }}
+                </div>
+                <div class="metric-sub">
+                    {% if results.target_risk_profile.risk_score >= 80 %}
+                        Critical Risk: Immediate Section 91 CrPC notice to destination exchange recommended.
+                    {% elif results.target_risk_profile.risk_score >= 60 %}
+                        High Risk: Request account freeze and KYC identification from VASP.
+                    {% else %}
+                        Routine check: Standard monitoring threshold.
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="metric-card card-volume">
+                <div class="metric-label">
+                    <span>Cluster Volume &amp; Txs</span>
+                    <span class="badge badge-info">ON-CHAIN FLOW</span>
+                </div>
+                <div class="metric-value" style="color: #38bdf8;">
+                    {{ results.total_amount }} <span style="font-size: 15px;">ETH</span>
+                </div>
+                <div class="metric-sub">
+                    {{ results.total_transactions }} Transactions across {{ results.wallets|length }} Discovered Wallets
+                </div>
+            </div>
+        </div>
+
+        <!-- Target Risk Overview Snapshot -->
+        <section class="panel">
+            <div class="panel-header">
+                <h2>🛡️ Executive Risk Assessment Snapshot</h2>
+                <button type="button" class="preset-btn" onclick="switchInvestigationTab('risk')">
+                    Open Detailed Risk Dossier →
+                </button>
+            </div>
+
+            <div class="risk-hero-box" style="margin-bottom: 0;">
+                <div class="risk-hero-header">
+                    <div class="risk-address-title">
+                        <span style="font-size: 20px;">🎯</span>
+                        <div>
+                            <div style="font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase;">
+                                Investigated Subject Wallet
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                                <span class="wallet-code">{{ results.target_address }}</span>
+                                <button type="button" class="copy-btn" onclick="copyToClipboard('{{ results.target_address }}', this)">
+                                    📋 Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="badge {{ results.target_risk_profile.badge_class }}" style="font-size: 13px; padding: 6px 14px;">
+                            {{ results.target_risk_profile.risk_label }} ({{ results.target_risk_profile.risk_score }}/100)
+                        </span>
+                    </div>
+                </div>
+
+                <div class="gauge-container">
+                    <div class="gauge-labels">
+                        <span>LOW (0-34)</span>
+                        <span>MEDIUM (35-59)</span>
+                        <span>HIGH (60-79)</span>
+                        <span>CRITICAL RISK (80-100)</span>
+                    </div>
+                    <div class="gauge-bar-track">
+                        <div class="gauge-bar-fill" style="width: {{ results.target_risk_profile.risk_score }}%;"></div>
+                    </div>
+                </div>
+
+                <div class="verdict-box verdict-{{ results.target_risk_profile.risk_level|lower }}">
+                    <span style="font-size: 22px;">⚖️</span>
+                    <div>
+                        <strong>Summary Verdict:</strong> {{ results.target_risk_profile.summary_verdict }}
+                        <div style="margin-top: 6px; font-weight: 600;">
+                            {{ results.target_risk_profile.action_recommendation }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Network Graph Overview Preview -->
+        <section class="panel">
+            <div class="panel-header">
+                <h2>🌐 Multi-Hop Network Topology Overview</h2>
+                <button type="button" class="preset-btn" onclick="switchInvestigationTab('graph')">
+                    Expand Full Graph View →
+                </button>
+            </div>
+            {% if results.total_transactions > 0 %}
+                <iframe
+                    class="graph-frame"
+                    style="height: 480px;"
+                    title="Interactive blockchain transaction graph"
+                    srcdoc="{{ results.graph_html|e }}"
+                    sandbox="allow-scripts allow-same-origin"
+                    loading="lazy"
+                ></iframe>
+            {% endif %}
+        </section>
+
+        <!-- Quick Section Grid: VASP & Transactions Summary -->
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;">
+            <!-- VASP Summary Card -->
+            <section class="panel" style="margin-bottom: 0;">
+                <div class="panel-header">
+                    <h2>🏦 Destination VASP Endpoint</h2>
+                    <button type="button" class="preset-btn" onclick="switchInvestigationTab('vasp')">View All Matches →</button>
+                </div>
+                {% if results.attributions %}
+                    <p style="color: var(--muted); font-size: 13px; margin-top: 0;">
+                        Identified <strong>{{ results.attributions|length }}</strong> service records in transaction path:
+                    </p>
+                    <ul style="padding-left: 20px; margin: 0; font-size: 13px;">
+                        {% for item in results.attributions %}
+                        <li style="margin-bottom: 8px;">
+                            <strong style="color: #f8fafc;">{{ item.service }}</strong>
+                            <span class="badge badge-info" style="font-size: 10px; margin-left: 6px;">{{ item.category }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p style="color: var(--muted); font-size: 13px;">No known VASP or exchange matched in this transaction trail.</p>
+                {% endif %}
+            </section>
+
+            <!-- Case Actions Card -->
+            <section class="panel" style="margin-bottom: 0;">
+                <div class="panel-header">
+                    <h2>📋 Law Enforcement Requisition</h2>
+                    <button type="button" class="preset-btn" onclick="switchInvestigationTab('report')">View Case Notice →</button>
+                </div>
+                <p style="color: var(--muted); font-size: 13px; line-height: 1.6; margin-top: 0;">
+                    Automated Section 91 CrPC Preservation Notice and official evidence CSV report generated and compiled.
+                </p>
+                <div style="display: flex; gap: 10px; margin-top: 14px;">
+                    <a class="button" href="{{ url_for('get_report') }}" style="padding: 10px 16px; font-size: 13px;">
+                        📥 Download Full CSV Report
+                    </a>
+                </div>
+            </section>
+        </div>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- TAB 2: DEDICATED WALLET RISK PROFILE (DEEP-DIVE DOSSIER) -->
+    <!-- ============================================================ -->
+    <div id="tabContent-risk" class="tab-pane">
+        <section class="panel">
+            <div class="panel-header">
+                <h2>🛡️ Target Wallet Behavioral Risk Dossier</h2>
+                <span class="badge {{ results.target_risk_profile.badge_class }}">
+                    <span class="pulse-dot dot-{{ results.target_risk_profile.risk_level|lower }}"></span>
+                    {{ results.target_risk_profile.risk_label }}
+                </span>
+            </div>
+
+            <p class="section-subtitle">
+                Forensic behavioral risk profile computed by auditing the target wallet's on-chain turnover velocity,
+                mixer/tumbler interactions, structured peeling chains, and proximity to destination VASP off-ramps.
+            </p>
+
+            <!-- Risk Hero Card -->
+            <div class="risk-hero-box">
+                <div class="risk-hero-header">
+                    <div class="risk-address-title">
+                        <span style="font-size: 20px;">🎯</span>
+                        <div>
+                            <div style="font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase;">
+                                Investigated Subject Wallet
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                                <span class="wallet-code">{{ results.target_address }}</span>
+                                <button type="button" class="copy-btn" onclick="copyToClipboard('{{ results.target_address }}', this)">
+                                    📋 Copy
+                                </button>
+                                {% if results.mode_key == 'real' %}
+                                <a href="https://etherscan.io/address/{{ results.target_address }}" target="_blank" rel="noopener noreferrer" class="copy-btn">
+                                    🔗 View on Etherscan
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: right;">
+                        <div style="font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase;">
+                            Composite Risk Score
+                        </div>
+                        <div style="font-size: 32px; font-weight: 900; color: {{ results.target_risk_profile.risk_color }};">
+                            {{ results.target_risk_profile.risk_score }}<span style="font-size: 18px; color: var(--muted);">/100</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Progress Gauge -->
+                <div class="gauge-container">
+                    <div class="gauge-labels">
+                        <span>LOW RISK (0-34)</span>
+                        <span>MEDIUM (35-59)</span>
+                        <span>HIGH (60-79)</span>
+                        <span>CRITICAL RISK (80-100)</span>
+                    </div>
+                    <div class="gauge-bar-track">
+                        <div class="gauge-bar-fill" style="width: {{ results.target_risk_profile.risk_score }}%;"></div>
+                    </div>
+                </div>
+
+                <!-- Forensic Verdict -->
+                <div class="verdict-box verdict-{{ results.target_risk_profile.risk_level|lower }}">
+                    <span style="font-size: 22px;">⚖️</span>
+                    <div>
+                        <strong>Forensic Verdict:</strong> {{ results.target_risk_profile.summary_verdict }}
+                        <div style="margin-top: 6px; font-weight: 600;">
+                            {{ results.target_risk_profile.action_recommendation }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6 Behavioral Heuristic Factor Cards -->
+                <h3 style="margin: 24px 0 6px; font-size: 15px; color: #f8fafc; font-weight: 700;">
+                    Forensic Behavioral Indicators Audit
+                </h3>
+                <p class="section-subtitle" style="margin-bottom: 14px;">
+                    Breakdown of heuristic flags tested against on-chain transaction activity for this wallet.
+                </p>
+
+                <div class="factors-grid">
+                    {% for factor in results.target_risk_profile.factors %}
+                    <div class="factor-card {% if factor.detected %}factor-flagged{% else %}factor-cleared{% endif %}">
+                        <div>
+                            <div class="factor-head">
+                                <span class="factor-name">
+                                    <span>{{ factor.icon }}</span> {{ factor.name }}
+                                </span>
+                                {% if factor.detected %}
+                                <span class="badge {% if factor.severity == 'CRITICAL' %}badge-critical{% elif factor.severity == 'HIGH' %}badge-high{% else %}badge-medium{% endif %}">
+                                    FLAGGED ({{ factor.points }})
+                                </span>
+                                {% else %}
+                                <span class="badge badge-low" style="opacity: 0.7;">
+                                    CLEARED (0)
+                                </span>
+                                {% endif %}
+                            </div>
+                            <p class="factor-detail">{{ factor.detail }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <!-- Discovered Wallets Risk Matrix (Full Table) -->
+        <section class="panel">
+            <div class="panel-header">
+                <h2>👥 Discovered Wallets Risk Matrix (Cluster Breakdown)</h2>
+                <span class="badge badge-info">{{ results.wallets|length }} Total Entities Identified</span>
+            </div>
+
+            <p class="section-subtitle">
+                Complete risk profiles for every participant, intermediary mule, and service gateway discovered
+                along this transaction trail.
+            </p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Wallet Entity</th>
+                            <th>Role in Trail</th>
+                            <th>Risk Score</th>
+                            <th>Risk Level</th>
+                            <th>Attributed Service</th>
+                            <th>Total Sent (ETH)</th>
+                            <th>Total Recv (ETH)</th>
+                            <th>Tx Count</th>
+                            <th>Behavioral Flags</th>
+                            <th>Action Guidance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for w in results.wallets %}
+                        <tr {% if w.is_target %}style="background: rgba(168, 85, 247, 0.08);"{% endif %}>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    {% if w.is_target %}
+                                    <span title="Subject Target Wallet" style="font-size: 15px;">🎯</span>
+                                    {% endif %}
+                                    <code style="color: {% if w.is_target %}#c084fc{% else %}#93c5fd{% endif %}; font-weight: 700;">
+                                        {{ w.short_address }}
+                                    </code>
+                                    <button type="button" class="copy-btn" style="padding: 2px 6px; font-size: 10px;"
+                                            onclick="copyToClipboard('{{ w.address }}', this)" title="Copy full address">
+                                        📋
+                                    </button>
+                                </div>
+                            </td>
+                            <td>
+                                <span style="font-weight: 600; font-size: 12px; color: {% if w.is_target %}#c084fc{% elif 'Mixer' in w.role %}#f87171{% elif 'Gateway' in w.role %}#fbbf24{% else %}#94a3b8{% endif %};">
+                                    {{ w.role }}
+                                </span>
+                            </td>
+                            <td>
+                                <div style="display: flex; align-items: center;">
+                                    <div class="mini-meter">
+                                        <div class="mini-meter-fill" style="width: {{ w.risk_score }}%; background: {{ w.risk_color }};"></div>
+                                    </div>
+                                    <strong style="color: {{ w.risk_color }};">{{ w.risk_score }}</strong>
+                                    <span style="color: var(--muted); font-size: 11px;">/100</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge {{ w.badge_class }}">
+                                    {{ w.risk_level }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if w.matched_service %}
+                                    <strong style="color: #fbbf24;">{{ w.matched_service }}</strong>
+                                    <br><span style="font-size: 11px; color: var(--muted);">{{ w.matched_category }}</span>
+                                {% else %}
+                                    <span style="color: var(--muted); font-size: 12px;">Unattributed</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ w.total_sent }}</td>
+                            <td>{{ w.total_received }}</td>
+                            <td><strong>{{ w.transaction_count }}</strong></td>
+                            <td>
+                                {% if w.flagged_factors %}
+                                    {% for f in w.flagged_factors %}
+                                        <span class="badge {% if f.severity == 'CRITICAL' %}badge-critical{% elif f.severity == 'HIGH' %}badge-high{% else %}badge-medium{% endif %}" style="font-size: 10px; margin: 2px 1px;">
+                                            {{ f.icon }} {{ f.name }}
+                                        </span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span style="color: #4ade80; font-size: 11px;">Clean Flow</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span style="font-size: 11px; color: var(--muted); line-height: 1.3; display: inline-block; max-width: 220px;">
+                                    {{ w.action_recommendation }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- TAB 3: NETWORK GRAPH (FULL IMMERSIVE VIEW) -->
+    <!-- ============================================================ -->
+    <div id="tabContent-graph" class="tab-pane">
+        <section class="panel">
+            <div class="panel-header">
+                <h2>🌐 Multi-Hop Transaction Network Topology (Full Canvas)</h2>
+                <span class="badge badge-info">{{ results.wallets|length }} Nodes • {{ results.total_transactions }} Edges</span>
+            </div>
+
+            <p class="section-subtitle">
+                Interactive multi-hop blockchain network topology. Drag nodes to explore recursive transaction hops.
+                Hover over nodes to inspect wallet risk scores, roles, and attribution labels.
+            </p>
+
+            {% if results.total_transactions > 0 %}
+                <iframe
+                    id="fullNetworkGraphFrame"
+                    class="graph-frame"
+                    title="Interactive blockchain transaction graph"
+                    srcdoc="{{ results.graph_html|e }}"
+                    sandbox="allow-scripts allow-same-origin"
+                    loading="lazy"
+                ></iframe>
+
+                <div class="graph-legend">
+                    <span style="font-weight: 700; color: #f8fafc;">Graph Topology Legend:</span>
+                    <span class="legend-item"><span class="legend-dot" style="background: #8b5cf6;"></span> Target Wallet (Subject)</span>
+                    <span class="legend-item"><span class="legend-dot" style="background: #f59e0b;"></span> VASP / Exchange Endpoint (Diamond)</span>
+                    <span class="legend-item"><span class="legend-dot" style="background: #dc2626;"></span> Privacy Mixer Protocol (Triangle)</span>
+                    <span class="legend-item"><span class="legend-dot" style="background: #06b6d4;"></span> Cross-Chain Bridge Gateway</span>
+                    <span class="legend-item"><span class="legend-dot" style="background: #ef4444;"></span> Critical Risk Intermediary Mule</span>
+                    <span class="legend-item"><span class="legend-dot" style="background: #f97316;"></span> High Risk Counterparty</span>
+                    <span class="legend-item"><span class="legend-dot" style="background: #10b981;"></span> Low Risk Entity</span>
+                </div>
+            {% else %}
+                <div class="alert-box alert-notice">
+                    No transactions were returned for this address.
+                </div>
+            {% endif %}
+        </section>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- TAB 4: VASP ATTRIBUTION (DEDICATED TERMINAL) -->
+    <!-- ============================================================ -->
+    <div id="tabContent-vasp" class="tab-pane">
+        <section class="panel">
+            <div class="panel-header">
+                <h2>🏦 Exchange &amp; VASP Attribution Matches</h2>
+                {% if results.attributions %}
+                <span class="badge badge-medium">{{ results.attributions|length }} Matched Records</span>
+                {% else %}
+                <span class="badge badge-info">0 Matches</span>
+                {% endif %}
+            </div>
+
+            <p class="section-subtitle">
+                Identifies addresses that match official reference records and Etherscan label sets across
+                centralized exchanges, VASPs, mixers, bridges and DeFi protocols.
+            </p>
+
+            {% if results.attribution_notice %}
+            <div class="alert-box alert-notice">
+                <span>ℹ️</span> <div>{{ results.attribution_notice }}</div>
+            </div>
+            {% endif %}
+
+            {% if results.attributions %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Identified Service</th>
+                            <th>Entity Category</th>
+                            <th>Matched Address</th>
+                            <th>Transaction Role</th>
+                            <th>Transactions</th>
+                            <th>Evidence Source</th>
+                            <th>Verification Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in results.attributions %}
+                        <tr>
+                            <td>
+                                <strong style="color: #f8fafc; font-size: 14px;">{{ item.service }}</strong>
+                            </td>
+                            <td>
+                                <span class="badge badge-info">{{ item.category }}</span>
+                            </td>
+                            <td>
+                                <code class="wallet-code" style="font-size: 11px;">{{ item.address }}</code>
+                                <button type="button" class="copy-btn" style="padding: 2px 6px; font-size: 10px;"
+                                        onclick="copyToClipboard('{{ item.address }}', this)">
+                                    📋
+                                </button>
+                            </td>
+                            <td>
+                                {% for role in item.transaction_roles %}
+                                    <span class="badge badge-medium" style="font-size: 10px;">{{ role }}</span>
+                                {% endfor %}
+                            </td>
+                            <td><strong>{{ item.transaction_count }}</strong></td>
+                            <td>
+                                {{ item.source_name or 'Source documented' }}
+                                {% if item.source_url %}
+                                    <br><a href="{{ item.source_url }}" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; font-size: 11px;">View Source</a>
+                                {% endif %}
+                                {% if item.notes %}
+                                    <p style="margin: 4px 0 0; font-size: 11px; color: var(--muted);">{{ item.notes }}</p>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.evidence_type == 'simulated_demo_record' %}
+                                    <span class="badge badge-medium">Simulated Demo</span>
+                                {% elif item.verified %}
+                                    <span class="badge badge-low">Verified Source</span>
+                                {% else %}
+                                    <span class="badge badge-info">Source Published</span>
+                                {% endif %}
+                                <p style="margin: 4px 0 0; font-size: 11px; color: var(--muted);">{{ item.confidence }}</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert-box alert-notice">
+                <strong>No VASP attribution matches found:</strong> None of the transaction participants matched configured exchange reference datasets.
+            </div>
+            {% endif %}
+
+            <div class="alert-box alert-warning" style="margin-top: 18px; margin-bottom: 0;">
+                <span>⚠️</span>
+                <div>
+                    <strong>Evidence Limitation &amp; Requisition SOP:</strong> A service attribution identifies an entity address, not the individual human account holder.
+                    To obtain suspect identities, investigating officers must serve a Section 91 CrPC notice or formal bilateral legal requisition to the compliance department of the attributed VASP.
+                </div>
+            </div>
+        </section>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- TAB 5: TRANSACTION LEDGER (DETAILED ON-CHAIN AUDIT) -->
+    <!-- ============================================================ -->
+    <div id="tabContent-ledger" class="tab-pane">
+        <section class="panel">
+            <div class="panel-header">
+                <h2>📜 On-Chain Transaction Trail Ledger</h2>
+                <span class="badge badge-info">{{ results.transactions|length }} Transactions Audited</span>
+            </div>
+
+            <p class="section-subtitle">
+                Complete forensic ledger of transactions tracing funds from origin to intermediate mules and final VASP endpoints.
+            </p>
+
+            {% if results.transactions %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sender Wallet</th>
+                            <th>Receiver Wallet</th>
+                            <th>Transfer Value</th>
+                            <th>Timestamp (UTC)</th>
+                            <th>Transaction Hash</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in results.transactions %}
+                        <tr>
+                            <td>
+                                <code class="wallet-code" style="font-size: 12px;">{{ tx.from }}</code>
+                                <button type="button" class="copy-btn" style="padding: 2px 6px; font-size: 10px;"
+                                        onclick="copyToClipboard('{{ tx.from }}', this)">
+                                    📋
+                                </button>
+                            </td>
+                            <td>
+                                <code class="wallet-code" style="font-size: 12px;">{{ tx.to }}</code>
+                                <button type="button" class="copy-btn" style="padding: 2px 6px; font-size: 10px;"
+                                        onclick="copyToClipboard('{{ tx.to }}', this)">
+                                    📋
+                                </button>
+                            </td>
+                            <td>
+                                <strong style="color: #38bdf8;">{{ tx.value_eth }} ETH</strong>
+                            </td>
+                            <td>
+                                <span style="color: var(--muted); font-size: 12px;">{{ tx.time }}</span>
+                            </td>
+                            <td>
+                                {% if results.mode_key == 'real' and tx.hash and tx.hash.startswith('0x') %}
+                                    <a href="https://etherscan.io/tx/{{ tx.hash }}" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; font-size: 12px;">
+                                        View on Etherscan ↗
+                                    </a>
+                                {% else %}
+                                    <code style="font-size: 11px; color: var(--muted);">{{ tx.hash }}</code>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert-box alert-notice">No transactions to display.</div>
+            {% endif %}
+        </section>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- TAB 6: CASE EVIDENCE REPORT & LEGAL NOTICES (SOP GENERATOR) -->
+    <!-- ============================================================ -->
+    <div id="tabContent-report" class="tab-pane">
+        <section class="panel">
+            <div class="panel-header">
+                <h2>📋 Law Enforcement Forensic Case Dossier &amp; Requisition Generator</h2>
+                <a class="button" href="{{ url_for('get_report') }}">
+                    <span>📥 Download Full Investigation CSV</span>
+                </a>
+            </div>
+
+            <p class="section-subtitle">
+                Official investigation briefing document formatted in compliance with standard operating procedures
+                of the Indian Cyber Crime Coordination Centre (I4C).
+            </p>
+
+            <div class="risk-hero-box">
+                <h3 style="margin: 0 0 14px; font-size: 15px; color: #f8fafc;">
+                    ⚖️ Section 91 CrPC Asset Preservation Notice Template (Automated Draft)
+                </h3>
+                <p style="font-size: 12px; color: var(--muted); margin-bottom: 14px;">
+                    Copy this pre-populated legal draft to serve on the compliance officer of the identified VASP.
+                </p>
+
+                <div class="report-preview-box" id="legalNoticeText">FORMAL PRESERVATION &amp; FREEZE REQUISITION
+UNDER SECTION 91 / 102 OF THE CODE OF CRIMINAL PROCEDURE (CrPC)
+
+To: Compliance &amp; Legal Liaison Officer, {% if results.top_vasp %}{{ results.top_vasp.name }}{% else %}[Attributed VASP Endpoint]{% endif %}
+Case Reference: CYBER-TRACE-I4C-SIH26183
+Date: Current Local System Time
+
+SUBJECT: URGENT PRESERVATION &amp; FREEZE ORDER REGARDING ILLICIT DIGITAL ASSET PROCEEDS
+
+Sir/Madam,
+1. Investigation has revealed that digital assets originating from illicit fraud schemes have been layered through multiple blockchain hops and deposited into your platform gateway.
+2. Subject Wallet Address: {{ results.target_address }}
+3. Composite Risk Score: {{ results.target_risk_profile.risk_score }}/100 ({{ results.target_risk_profile.risk_level }} RISK)
+4. Key Identified Indicators:
+   {% for f in results.target_risk_profile.flagged_factors %}
+   - {{ f.name }}: {{ f.detail }}
+   {% endfor %}
+5. Destination Deposit Terminal: {% if results.top_vasp %}{{ results.top_vasp.address }} ({{ results.top_vasp.name }}){% else %}External Deposit Terminal{% endif %}
+6. Total Traced Value: {{ results.total_amount }} ETH
+
+YOU ARE HEREBY DIRECTED TO:
+a) IMMEDIATELY FREEZE and restrict all outward withdrawals/transfers of the credited digital assets or corresponding fiat equivalent.
+b) Furnish KYC documents (Aadhaar/PAN/Passport), registered mobile number, email ID, and linked banking accounts of the beneficial account holder.
+c) Provide detailed IP login timestamps and session connection metadata within 24 hours.
+
+Failure to comply with this notice attracts penal consequences under the Indian Penal Code and Information Technology Act.
+
+Signed,
+Investigating Officer / Cyber Crime Police Station</div>
+
+                <div style="margin-top: 14px; display: flex; gap: 10px;">
+                    <button type="button" class="button button-secondary" onclick="copyToClipboard(document.getElementById('legalNoticeText').innerText, this)">
+                        📋 Copy Legal Notice Draft
+                    </button>
+                    <a class="button" href="{{ url_for('get_report') }}">
+                        📥 Download Official Evidence CSV
+                    </a>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    {% endif %}
+
+</main>
+
+<footer>
+    <div style="max-width: 1450px; margin: 0 auto;">
+        <p style="margin: 0 0 6px;">
+            <strong>CryptoTrace Forensic Platform</strong> — Built for Ministry of Home Affairs / I4C (SIH Problem Statement ID: 26183).
+        </p>
+        <p style="margin: 0; color: #64748b;">
+            Attribution datasets, risk heuristic indicators, and transaction topologies require standard law enforcement verification.
+        </p>
+    </div>
+</footer>
+
+<script>
+    // Mode toggle between Demo and Real Ethereum Mode
+    const modeSelect = document.getElementById("mode");
+    const scenarioContainer = document.getElementById("scenario-container");
+    const scenarioSelect = document.getElementById("scenario");
+    const walletInput = document.getElementById("wallet_address");
+
+    function updateModeFields() {
+        const isReal = modeSelect.value === "real";
+        scenarioContainer.style.display = isReal ? "none" : "block";
+        scenarioSelect.disabled = isReal;
+        walletInput.required = isReal;
+    }
+
+    modeSelect.addEventListener("change", updateModeFields);
+    updateModeFields();
+
+    // Demo presets
+    function applyDemoPreset(key) {
+        modeSelect.value = "demo";
+        updateModeFields();
+        scenarioSelect.value = key;
+        if (key === 'ethereum') {
+            walletInput.value = "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe";
+        } else if (key === 'suspicious') {
+            walletInput.value = "0x1111111111111111111111111111111111111111";
+        }
+        document.getElementById("traceForm").submit();
+    }
+
+    // Copy to clipboard helper
+    function copyToClipboard(text, btnElement) {
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+            const originalText = btnElement.innerText;
+            btnElement.innerText = "✓ Copied!";
+            btnElement.style.color = "#4ade80";
+            setTimeout(() => {
+                btnElement.innerText = originalText;
+                btnElement.style.color = "";
+            }, 1800);
+        }).catch(err => {
+            console.error("Copy failed:", err);
+        });
+    }
+
+    // ============================================================
+    // GOOGLE-STYLE TAB SWITCHING CONTROLLER
+    // ============================================================
+    const VALID_TABS = ['all', 'risk', 'graph', 'vasp', 'ledger', 'report'];
+
+    function switchInvestigationTab(targetTabId) {
+        if (!VALID_TABS.includes(targetTabId)) {
+            targetTabId = 'all';
+        }
+
+        // Update Tab Buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const activeBtn = document.getElementById('tabBtn-' + targetTabId);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+        }
+
+        // Update Tab Panes
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('active');
+        });
+        const activePane = document.getElementById('tabContent-' + targetTabId);
+        if (activePane) {
+            activePane.classList.add('active');
+        }
+
+        // Update URL hash without jump
+        if (history.replaceState) {
+            history.replaceState(null, null, '#' + targetTabId);
+        } else {
+            window.location.hash = targetTabId;
+        }
+
+        // Scroll tab button into view if on mobile
+        if (activeBtn) {
+            activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+    }
+
+    // Initialize tab from URL hash on page load
+    window.addEventListener('DOMContentLoaded', () => {
+        const hash = window.location.hash.replace('#', '').toLowerCase();
+        if (hash && VALID_TABS.includes(hash)) {
+            switchInvestigationTab(hash);
+        }
+    });
+</script>
+
+</body>
+</html>

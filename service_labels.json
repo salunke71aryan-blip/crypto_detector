@@ -1,0 +1,17 @@
+
+[
+  {
+    "service": "Example of a documented real service",
+    "category": "Exchange / VASP",
+    "address": "0x0123456789abcdef0123456789abcdef01234567",
+    "chain": "ethereum",
+    "source_name": "Name of the authoritative source",
+    "source_url": "https://example.com/documented-address",
+    "evidence_type": "Official published address list",
+    "confidence": "Source documented",
+    "verified": true,
+    "verified_by": "Researcher name or review ID",
+    "verified_date": "2026-10-11",
+    "notes": "Describe the evidence and what it establishes."
+  }
+]
